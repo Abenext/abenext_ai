@@ -1,5 +1,7 @@
 # Copyright (c) 2026, Abenext. All rights reserved.
 
+import hashlib
+
 import frappe
 from frappe import _
 from frappe.model.document import Document
@@ -7,13 +9,16 @@ from frappe.utils import flt
 
 from abenext_ai.bank_rec import extract
 
-JOB = "abenext_ai.bank_rec.doctype.ai_bank_statement.ai_bank_statement.run_extraction"
+MODULE = "abenext_ai.bank_rec.doctype.ai_bank_statement.ai_bank_statement"
 READY_TO_SUBMIT = ("Ready for Review", "Reconciled")
+BATCH_SIZE = 50
 
 
 class AIBankStatement(Document):
 	def validate(self):
 		if not self.is_new() and self.has_value_changed("statement_file") and self.status != "Extracting":
+			if _has_transactions(self):
+				frappe.throw(_("Bank Transactions were already created from this statement, so the file cannot be changed."))
 			self.status = "Draft"
 			self.set("lines", [])
 			self.error_log = ""
@@ -23,6 +28,17 @@ class AIBankStatement(Document):
 			frappe.throw(_("Process and review the statement before submitting it."))
 
 
+def _has_transactions(doc):
+	return any(row.bank_transaction for row in doc.lines)
+
+
+def _notify(name):
+	frappe.publish_realtime("ai_bank_statement_processed", {"name": name}, doctype="AI Bank Statement", docname=name)
+
+
+# ---------------------------------------------------------------- reading the PDF
+
+
 @frappe.whitelist()
 def process_statement(name):
 	"""Queue reading of the attached PDF. Called from the Process Statement button."""
@@ -30,13 +46,15 @@ def process_statement(name):
 	doc.check_permission("write")
 	if doc.docstatus != 0:
 		frappe.throw(_("Only draft statements can be processed."))
-	if doc.status == "Extracting":
+	if doc.status in ("Extracting", "Creating Transactions"):
 		frappe.throw(_("This statement is already being processed."))
+	if _has_transactions(doc):
+		frappe.throw(_("Bank Transactions were already created from this statement, so it cannot be read again."))
 	if not doc.statement_file:
 		frappe.throw(_("Attach the statement PDF first."))
 
 	doc.db_set({"status": "Extracting", "error_log": ""}, notify=True)
-	frappe.enqueue(JOB, queue="long", timeout=1200, name=name, enqueue_after_commit=True)
+	frappe.enqueue(MODULE + ".run_extraction", queue="long", timeout=1200, name=name, enqueue_after_commit=True)
 	return "queued"
 
 
@@ -95,7 +113,7 @@ def run_extraction(name):
 		frappe.log_error(title="AI Bank Statement processing failed", reference_doctype="AI Bank Statement", reference_name=name)
 
 	frappe.db.commit()
-	frappe.publish_realtime("ai_bank_statement_processed", {"name": name}, doctype="AI Bank Statement", docname=name)
+	_notify(name)
 
 
 def _file_path(file_url):
@@ -124,3 +142,100 @@ def _pick_format(doc, first_page_text):
 			matches.append(bank_format)
 	matches.sort(key=lambda f: 0 if bank and f.bank == bank else 1)
 	return matches[0] if matches else None
+
+
+# ---------------------------------------------------------------- Bank Transactions
+
+
+@frappe.whitelist()
+def create_bank_transactions(name):
+	"""Queue creation of one ERPNext Bank Transaction per statement line."""
+	doc = frappe.get_doc("AI Bank Statement", name)
+	doc.check_permission("write")
+	frappe.has_permission("Bank Transaction", "create", throw=True)
+	frappe.has_permission("Bank Transaction", "submit", throw=True)
+	if doc.docstatus != 0:
+		frappe.throw(_("Only draft statements can create Bank Transactions."))
+	if doc.status not in ("Extracted", "Transactions Created"):
+		frappe.throw(_("Bank Transactions can only be created after the statement is read and every balance agrees."))
+	if all(row.bank_transaction for row in doc.lines):
+		frappe.throw(_("Every line already has a Bank Transaction."))
+
+	doc.db_set({"status": "Creating Transactions", "error_log": ""}, notify=True)
+	frappe.enqueue(MODULE + ".run_create_transactions", queue="long", timeout=3600, name=name, enqueue_after_commit=True)
+	return "queued"
+
+
+def run_create_transactions(name):
+	"""Background job: create and submit Bank Transactions, skipping any that already exist."""
+	doc = frappe.get_doc("AI Bank Statement", name)
+	created = skipped = 0
+	try:
+		account = frappe.db.get_value("Bank Account", doc.bank_account, ["account", "company"], as_dict=True)
+		if not account or not account.account:
+			raise extract.StatementError(_("Bank Account {0} has no linked GL account.").format(doc.bank_account))
+		currency = frappe.db.get_value("Account", account.account, "account_currency") or frappe.get_cached_value(
+			"Company", account.company, "default_currency"
+		)
+
+		occurrences = {}
+		for count, row in enumerate(doc.lines, 1):
+			# Identical lines can appear more than once (for example a charge, its reversal,
+			# then the same charge again). Number them so each keeps its own Bank Transaction.
+			base = _line_key(doc.bank_account, row)
+			occurrences[base] = occurrences.get(base, 0) + 1
+			key = base if occurrences[base] == 1 else "%s-%d" % (base, occurrences[base])
+			if row.bank_transaction:
+				continue
+			existing = frappe.db.get_value(
+				"Bank Transaction", {"bank_account": doc.bank_account, "transaction_id": key, "docstatus": 1}, "name"
+			)
+			if existing:
+				frappe.db.set_value("AI Bank Statement Line", row.name, "bank_transaction", existing, update_modified=False)
+				skipped += 1
+				continue
+
+			transaction = frappe.get_doc({
+				"doctype": "Bank Transaction",
+				"date": row.date,
+				"bank_account": doc.bank_account,
+				"company": account.company,
+				"currency": currency,
+				"deposit": flt(row.credit),
+				"withdrawal": flt(row.debit),
+				"description": row.description,
+				"reference_number": row.reference_no,
+				"transaction_id": key,
+			})
+			transaction.insert()
+			transaction.submit()
+			frappe.db.set_value("AI Bank Statement Line", row.name, "bank_transaction", transaction.name, update_modified=False)
+			created += 1
+
+			if count % BATCH_SIZE == 0:
+				frappe.db.commit()
+
+		message = _("{0} Bank Transaction(s) created.").format(created)
+		if skipped:
+			message += " " + _("{0} already existed and were linked instead.").format(skipped)
+		frappe.db.set_value("AI Bank Statement", name, {"status": "Transactions Created", "error_log": message})
+	except Exception as exc:
+		frappe.db.rollback()
+		reason = str(exc) if isinstance(exc, extract.StatementError) else _("Stopped with an error. See Error Log for details.")
+		frappe.db.set_value("AI Bank Statement", name, {
+			"status": doc.status if doc.status == "Transactions Created" else "Extracted",
+			"error_log": _("Bank Transactions were not all created: {0} Click Create Bank Transactions again to continue; lines already done are skipped.").format(reason),
+		})
+		frappe.log_error(title="AI Bank Statement: Bank Transaction creation failed", reference_doctype="AI Bank Statement", reference_name=name)
+
+	frappe.db.commit()
+	_notify(name)
+
+
+def _line_key(bank_account, row):
+	"""A stable id for one statement line, so the same line never becomes two Bank Transactions."""
+	raw = "|".join([
+		str(bank_account), str(row.date), "%.2f" % flt(row.debit), "%.2f" % flt(row.credit),
+		"%.2f" % flt(row.balance), str(row.reference_no or ""),
+	])
+	return "ABX-" + hashlib.sha1(raw.encode("utf-8")).hexdigest()[:20].upper()
