@@ -5,7 +5,7 @@
   "format_name": "Meezan Bank - Account Statement",
   "enabled": 1,
   "learned_by_ai": 0,
-  "header_keywords": "Meezan Bank, Booking Date, Available Balance",
+  "header_keywords": "Booking Date, Available Balance, MEZN",
   "date_format": "%d %b %Y",
   "column_map": "{\n \"columns\": {\n  \"date\": [\n   \"booking date\"\n  ],\n  \"description\": [\n   \"description\"\n  ],\n  \"credit\": [\n   \"credit\"\n  ],\n  \"debit\": [\n   \"debit\"\n  ],\n  \"balance\": [\n   \"available balance\"\n  ]\n },\n \"opening_balance_label\": \"opening balance\",\n \"closing_balance_label\": \"closing balance\",\n \"footer_margin\": 40\n}",
   "notes": "Meezan Bank internet banking PDF. Columns: Booking Date, Description, Credit, Debit, Available Balance.",
