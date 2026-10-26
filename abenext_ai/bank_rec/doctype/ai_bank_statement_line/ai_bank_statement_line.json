@@ -1,0 +1,135 @@
+{
+ "actions": [],
+ "allow_rename": 0,
+ "creation": "2026-10-26 12:00:00.000000",
+ "doctype": "DocType",
+ "editable_grid": 1,
+ "engine": "InnoDB",
+ "field_order": [
+  "date",
+  "description",
+  "reference_no",
+  "debit",
+  "credit",
+  "balance",
+  "balance_ok",
+  "bank_transaction",
+  "match_type",
+  "matched_voucher_type",
+  "matched_voucher",
+  "confidence",
+  "match_reason",
+  "line_status"
+ ],
+ "fields": [
+  {
+   "columns": 1,
+   "fieldname": "date",
+   "fieldtype": "Date",
+   "in_list_view": 1,
+   "label": "Date",
+   "reqd": 1
+  },
+  {
+   "columns": 3,
+   "fieldname": "description",
+   "fieldtype": "Small Text",
+   "in_list_view": 1,
+   "label": "Description"
+  },
+  {
+   "fieldname": "reference_no",
+   "fieldtype": "Data",
+   "label": "Reference No"
+  },
+  {
+   "columns": 1,
+   "fieldname": "debit",
+   "fieldtype": "Currency",
+   "in_list_view": 1,
+   "label": "Debit"
+  },
+  {
+   "columns": 1,
+   "fieldname": "credit",
+   "fieldtype": "Currency",
+   "in_list_view": 1,
+   "label": "Credit"
+  },
+  {
+   "columns": 1,
+   "fieldname": "balance",
+   "fieldtype": "Currency",
+   "in_list_view": 1,
+   "label": "Balance"
+  },
+  {
+   "default": "0",
+   "fieldname": "balance_ok",
+   "fieldtype": "Check",
+   "label": "Balance OK",
+   "read_only": 1
+  },
+  {
+   "fieldname": "bank_transaction",
+   "fieldtype": "Link",
+   "label": "Bank Transaction",
+   "options": "Bank Transaction",
+   "read_only": 1
+  },
+  {
+   "columns": 1,
+   "default": "None",
+   "fieldname": "match_type",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "label": "Match Type",
+   "options": "None\nExact\nSuggested\nManual"
+  },
+  {
+   "fieldname": "matched_voucher_type",
+   "fieldtype": "Link",
+   "label": "Matched Voucher Type",
+   "options": "DocType"
+  },
+  {
+   "fieldname": "matched_voucher",
+   "fieldtype": "Dynamic Link",
+   "label": "Matched Voucher",
+   "options": "matched_voucher_type"
+  },
+  {
+   "fieldname": "confidence",
+   "fieldtype": "Percent",
+   "label": "Confidence",
+   "read_only": 1
+  },
+  {
+   "fieldname": "match_reason",
+   "fieldtype": "Small Text",
+   "label": "Match Reason",
+   "read_only": 1
+  },
+  {
+   "columns": 1,
+   "default": "Pending",
+   "fieldname": "line_status",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "label": "Line Status",
+   "options": "Pending\nAccepted\nSkipped\nReconciled"
+  }
+ ],
+ "index_web_pages_for_search": 1,
+ "istable": 1,
+ "links": [],
+ "modified": "2026-10-26 12:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Bank Rec",
+ "name": "AI Bank Statement Line",
+ "owner": "Administrator",
+ "permissions": [],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": []
+}

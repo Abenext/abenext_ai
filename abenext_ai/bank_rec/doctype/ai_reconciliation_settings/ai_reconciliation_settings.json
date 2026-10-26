@@ -1,0 +1,110 @@
+{
+ "actions": [],
+ "allow_rename": 0,
+ "creation": "2026-10-26 12:00:00.000000",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "section_matching",
+  "date_tolerance_days",
+  "amount_tolerance",
+  "auto_accept_threshold",
+  "column_break_1",
+  "match_payment_entry",
+  "match_journal_entry",
+  "section_accounts",
+  "bank_charges_account",
+  "withholding_tax_account"
+ ],
+ "fields": [
+  {
+   "fieldname": "section_matching",
+   "fieldtype": "Section Break",
+   "label": "Matching"
+  },
+  {
+   "default": "3",
+   "fieldname": "date_tolerance_days",
+   "fieldtype": "Int",
+   "label": "Date Tolerance (Days)"
+  },
+  {
+   "default": "0",
+   "fieldname": "amount_tolerance",
+   "fieldtype": "Currency",
+   "label": "Amount Tolerance"
+  },
+  {
+   "default": "95",
+   "fieldname": "auto_accept_threshold",
+   "fieldtype": "Percent",
+   "label": "Auto-Accept Threshold"
+  },
+  {
+   "fieldname": "column_break_1",
+   "fieldtype": "Column Break"
+  },
+  {
+   "default": "1",
+   "fieldname": "match_payment_entry",
+   "fieldtype": "Check",
+   "label": "Match Payment Entries"
+  },
+  {
+   "default": "1",
+   "fieldname": "match_journal_entry",
+   "fieldtype": "Check",
+   "label": "Match Journal Entries"
+  },
+  {
+   "fieldname": "section_accounts",
+   "fieldtype": "Section Break",
+   "label": "Accounts for Missing Entries"
+  },
+  {
+   "fieldname": "bank_charges_account",
+   "fieldtype": "Link",
+   "label": "Bank Charges Account",
+   "options": "Account"
+  },
+  {
+   "fieldname": "withholding_tax_account",
+   "fieldtype": "Link",
+   "label": "Withholding Tax Account",
+   "options": "Account"
+  }
+ ],
+ "index_web_pages_for_search": 1,
+ "issingle": 1,
+ "links": [],
+ "modified": "2026-10-26 12:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Bank Rec",
+ "name": "AI Reconciliation Settings",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 0,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 0,
+   "role": "Accounts Manager",
+   "share": 1,
+   "write": 1
+  }
+ ],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": []
+}

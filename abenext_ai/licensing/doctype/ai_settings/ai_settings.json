@@ -1,0 +1,96 @@
+{
+ "actions": [],
+ "allow_rename": 0,
+ "creation": "2026-10-26 12:00:00.000000",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "section_license",
+  "server_url",
+  "license_key",
+  "dev_mode",
+  "column_break_1",
+  "license_status",
+  "valid_till",
+  "last_sync",
+  "modules_enabled"
+ ],
+ "fields": [
+  {
+   "fieldname": "section_license",
+   "fieldtype": "Section Break",
+   "label": "License"
+  },
+  {
+   "fieldname": "server_url",
+   "fieldtype": "Data",
+   "label": "Server URL",
+   "options": "URL"
+  },
+  {
+   "fieldname": "license_key",
+   "fieldtype": "Password",
+   "label": "License Key"
+  },
+  {
+   "default": "0",
+   "description": "Call the AI provider directly. Development only.",
+   "fieldname": "dev_mode",
+   "fieldtype": "Check",
+   "label": "Development Mode"
+  },
+  {
+   "fieldname": "column_break_1",
+   "fieldtype": "Column Break"
+  },
+  {
+   "default": "Not Verified",
+   "fieldname": "license_status",
+   "fieldtype": "Select",
+   "label": "License Status",
+   "options": "Not Verified\nActive\nGrace\nSuspended",
+   "read_only": 1
+  },
+  {
+   "fieldname": "valid_till",
+   "fieldtype": "Date",
+   "label": "Valid Till",
+   "read_only": 1
+  },
+  {
+   "fieldname": "last_sync",
+   "fieldtype": "Datetime",
+   "label": "Last Sync",
+   "read_only": 1
+  },
+  {
+   "fieldname": "modules_enabled",
+   "fieldtype": "Small Text",
+   "label": "Modules Enabled",
+   "read_only": 1
+  }
+ ],
+ "index_web_pages_for_search": 1,
+ "issingle": 1,
+ "links": [],
+ "modified": "2026-10-26 12:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Licensing",
+ "name": "AI Settings",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 0,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  }
+ ],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": []
+}
