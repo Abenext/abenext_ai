@@ -1,17 +1,21 @@
 # Copyright (c) 2026, Abenext. All rights reserved.
 
 import hashlib
+import json
+from datetime import timedelta
 
 import frappe
 from frappe import _
 from frappe.model.document import Document
-from frappe.utils import flt
+from frappe.utils import flt, getdate
 
-from abenext_ai.bank_rec import extract
+from abenext_ai.bank_rec import extract, match
 
 MODULE = "abenext_ai.bank_rec.doctype.ai_bank_statement.ai_bank_statement"
 READY_TO_SUBMIT = ("Ready for Review", "Reconciled")
 BATCH_SIZE = 50
+BUSY = ("Extracting", "Creating Transactions", "Matching")
+REFERENCE_WINDOW_DAYS = 30
 
 
 class AIBankStatement(Document):
@@ -46,7 +50,7 @@ def process_statement(name):
 	doc.check_permission("write")
 	if doc.docstatus != 0:
 		frappe.throw(_("Only draft statements can be processed."))
-	if doc.status in ("Extracting", "Creating Transactions"):
+	if doc.status in BUSY:
 		frappe.throw(_("This statement is already being processed."))
 	if _has_transactions(doc):
 		frappe.throw(_("Bank Transactions were already created from this statement, so it cannot be read again."))
@@ -239,3 +243,147 @@ def _line_key(bank_account, row):
 		"%.2f" % flt(row.balance), str(row.reference_no or ""),
 	])
 	return "ABX-" + hashlib.sha1(raw.encode("utf-8")).hexdigest()[:20].upper()
+
+
+# ---------------------------------------------------------------- matching
+
+
+@frappe.whitelist()
+def find_matches(name):
+	"""Queue rule matching of statement lines against Payment Entries and Journal Entries."""
+	doc = frappe.get_doc("AI Bank Statement", name)
+	doc.check_permission("write")
+	if doc.docstatus != 0:
+		frappe.throw(_("Only draft statements can be matched."))
+	if doc.status not in ("Transactions Created", "Ready for Review"):
+		frappe.throw(_("Create Bank Transactions for every line before matching."))
+	if not all(row.bank_transaction for row in doc.lines):
+		frappe.throw(_("Some lines have no Bank Transaction yet. Create them first."))
+
+	doc.db_set({"status": "Matching", "error_log": ""}, notify=True)
+	frappe.enqueue(MODULE + ".run_matching", queue="long", timeout=1800, name=name, enqueue_after_commit=True)
+	return "queued"
+
+
+def run_matching(name):
+	"""Background job: match pending lines. Lines a user already accepted or skipped are left alone."""
+	doc = frappe.get_doc("AI Bank Statement", name)
+	try:
+		settings = frappe.get_single("AI Reconciliation Settings")
+		gl_account = frappe.db.get_value("Bank Account", doc.bank_account, "account")
+
+		pending = [row for row in doc.lines if (row.line_status or "Pending") == "Pending"]
+		for row in pending:
+			row.update({"match_type": "None", "matched_voucher_type": None, "matched_voucher": None,
+				"matched_vouchers": None, "confidence": 0, "match_reason": None})
+
+		dates = [getdate(row.date) for row in doc.lines]
+		window = timedelta(days=REFERENCE_WINDOW_DAYS)
+		entries = _load_entries(doc, gl_account, min(dates) - window, max(dates) + window, settings)
+
+		lines = [{
+			"key": row.name, "date": getdate(row.date), "deposit": flt(row.credit), "withdrawal": flt(row.debit),
+			"reference": row.reference_no, "description": row.description,
+		} for row in pending]
+		results = match.find_matches(
+			lines, entries,
+			date_tolerance=settings.date_tolerance_days if settings.date_tolerance_days is not None else 3,
+			amount_tolerance=flt(settings.amount_tolerance),
+			reference_window=REFERENCE_WINDOW_DAYS,
+		)
+
+		by_name = {row.name: row for row in pending}
+		for key, found in results.items():
+			first = found["entries"][0]
+			by_name[key].update({
+				"match_type": found["type"],
+				"matched_voucher_type": first["voucher_type"],
+				"matched_voucher": first["voucher"],
+				"matched_vouchers": json.dumps(
+					[{"voucher_type": e["voucher_type"], "voucher": e["voucher"], "amount": e["amount"]} for e in found["entries"]]
+				) if len(found["entries"]) > 1 else None,
+				"confidence": found["confidence"],
+				"match_reason": found["reason"],
+			})
+
+		exact = sum(1 for r in results.values() if r["type"] == match.EXACT)
+		suggested = len(results) - exact
+		doc.status = "Ready for Review"
+		doc.error_log = _("Exact matches: {0}. Suggested matches: {1}. No match found: {2}.").format(
+			exact, suggested, len(pending) - len(results))
+		doc.flags.ignore_permissions = True
+		doc.save()
+	except Exception:
+		frappe.db.rollback()
+		frappe.db.set_value("AI Bank Statement", name, {
+			"status": "Transactions Created",
+			"error_log": _("Matching stopped with an error. See Error Log for details."),
+		})
+		frappe.log_error(title="AI Bank Statement matching failed", reference_doctype="AI Bank Statement", reference_name=name)
+
+	frappe.db.commit()
+	_notify(name)
+
+
+def _load_entries(doc, gl_account, from_date, to_date, settings):
+	"""Submitted, uncleared Payment Entries and Journal Entries on this bank's GL account."""
+	taken = _taken_elsewhere(doc.name)
+	entries = []
+
+	if settings.match_payment_entry:
+		payments = frappe.get_all(
+			"Payment Entry",
+			filters={"docstatus": 1, "company": doc.company, "posting_date": ["between", [from_date, to_date]],
+				"clearance_date": ["is", "not set"]},
+			or_filters={"paid_from": gl_account, "paid_to": gl_account},
+			fields=["name", "posting_date", "paid_from", "paid_to", "paid_amount", "received_amount",
+				"reference_no", "party", "party_name"],
+		)
+		for pe in payments:
+			incoming = pe.paid_to == gl_account
+			entries.append({
+				"id": "Payment Entry:" + pe.name, "voucher_type": "Payment Entry", "voucher": pe.name,
+				"date": getdate(pe.posting_date), "direction": "in" if incoming else "out",
+				"amount": flt(pe.received_amount if incoming else pe.paid_amount),
+				"reference": pe.reference_no, "party": pe.party_name or pe.party,
+			})
+
+	if settings.match_journal_entry:
+		rows = frappe.db.sql(
+			"""
+			select je.name, je.posting_date, je.cheque_no, je.pay_to_recd_from,
+				jea.debit_in_account_currency as debit, jea.credit_in_account_currency as credit
+			from `tabJournal Entry Account` jea
+			join `tabJournal Entry` je on je.name = jea.parent
+			where je.docstatus = 1 and je.company = %(company)s and jea.account = %(account)s
+				and je.posting_date between %(from_date)s and %(to_date)s
+				and je.clearance_date is null
+			""",
+			{"company": doc.company, "account": gl_account, "from_date": from_date, "to_date": to_date},
+			as_dict=True,
+		)
+		for je in rows:
+			incoming = flt(je.debit) > 0
+			entries.append({
+				"id": "Journal Entry:" + je.name, "voucher_type": "Journal Entry", "voucher": je.name,
+				"date": getdate(je.posting_date), "direction": "in" if incoming else "out",
+				"amount": flt(je.debit if incoming else je.credit),
+				"reference": je.cheque_no, "party": je.pay_to_recd_from or "",
+			})
+
+	return [e for e in entries if e["id"] not in taken]
+
+
+def _taken_elsewhere(statement):
+	"""Entries already matched on other statements' lines that were not skipped."""
+	taken = set()
+	rows = frappe.get_all(
+		"AI Bank Statement Line",
+		filters={"parent": ["!=", statement], "matched_voucher": ["is", "set"], "line_status": ["!=", "Skipped"]},
+		fields=["matched_voucher_type", "matched_voucher", "matched_vouchers"],
+	)
+	for row in rows:
+		taken.add("%s:%s" % (row.matched_voucher_type, row.matched_voucher))
+		for extra in json.loads(row.matched_vouchers or "[]"):
+			taken.add("%s:%s" % (extra["voucher_type"], extra["voucher"]))
+	return taken

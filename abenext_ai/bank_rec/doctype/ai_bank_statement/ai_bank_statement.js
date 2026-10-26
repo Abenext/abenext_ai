@@ -20,7 +20,7 @@ frappe.ui.form.on("AI Bank Statement", {
 
 		const lines = frm.doc.lines || [];
 		const linked = lines.some((row) => row.bank_transaction);
-		const busy = ["Extracting", "Creating Transactions"].includes(frm.doc.status);
+		const busy = ["Extracting", "Creating Transactions", "Matching"].includes(frm.doc.status);
 
 		if (frm.doc.statement_file && !busy && !linked) {
 			const label = lines.length ? __("Process Again") : __("Process Statement");
@@ -37,6 +37,30 @@ frappe.ui.form.on("AI Bank Statement", {
 				);
 			}).addClass("btn-primary");
 		}
+
+		if (["Transactions Created", "Ready for Review"].includes(frm.doc.status) && lines.length && !unlinked) {
+			const again = frm.doc.status === "Ready for Review";
+			const button = frm.add_custom_button(again ? __("Match Again") : __("Find Matches"),
+				() => run(frm, "find_matches", __("Finding matches...")),
+				again ? __("Actions") : null);
+			if (!again) {
+				button.addClass("btn-primary");
+			}
+		}
+	},
+});
+
+frappe.ui.form.on("AI Bank Statement Line", {
+	form_render(frm, cdt, cdn) {
+		const row = locals[cdt][cdn];
+		if (!row.matched_vouchers) {
+			return;
+		}
+		const list = JSON.parse(row.matched_vouchers)
+			.map((v) => `${v.voucher_type} ${v.voucher}: ${format_currency(v.amount)}`)
+			.join("<br>");
+		frm.fields_dict.lines.grid.grid_rows_by_docname[cdn].get_field("matched_vouchers")
+			.set_description(list);
 	},
 });
 
@@ -61,6 +85,8 @@ function show_status(frm) {
 		"Balance Mismatch": [__("{0} lines read, but some balances do not agree. See the Log section and the unticked Balance OK lines.", [lines]), "orange"],
 		"Creating Transactions": [__("Creating Bank Transactions. This page updates when it is done."), "blue"],
 		"Transactions Created": [__("{0} of {1} lines are linked to Bank Transactions. {2}", [linked, lines, frm.doc.error_log || ""]), "green"],
+		"Matching": [__("Finding matches. This page updates when it is done."), "blue"],
+		"Ready for Review": [frm.doc.error_log || __("Matching is done."), "green"],
 		"Failed": [__("The statement could not be read. See the Log section."), "red"],
 	};
 	const message = messages[frm.doc.status];

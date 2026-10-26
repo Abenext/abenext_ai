@@ -17,6 +17,7 @@
   "match_type",
   "matched_voucher_type",
   "matched_voucher",
+  "matched_vouchers",
   "confidence",
   "match_reason",
   "line_status"
@@ -99,6 +100,13 @@
    "options": "matched_voucher_type"
   },
   {
+   "description": "All entries matched to this line, when one bank line covers several entries",
+   "fieldname": "matched_vouchers",
+   "fieldtype": "Small Text",
+   "label": "Matched Vouchers",
+   "read_only": 1
+  },
+  {
    "fieldname": "confidence",
    "fieldtype": "Percent",
    "label": "Confidence",
@@ -123,7 +131,7 @@
  "index_web_pages_for_search": 1,
  "istable": 1,
  "links": [],
- "modified": "2026-10-26 12:00:00.000000",
+ "modified": "2026-10-27 00:30:00.000000",
  "modified_by": "Administrator",
  "module": "Bank Rec",
  "name": "AI Bank Statement Line",
