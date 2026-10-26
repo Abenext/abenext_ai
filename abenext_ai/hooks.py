@@ -1,13 +1,13 @@
 app_name = "abenext_ai"
 app_title = "Abenext AI"
 app_publisher = "Abenext"
-app_description = "I assistant for ERPNext: bank reconciliation, audit checks, collections, WhatsApp and customer portal"
+app_description = "AI assistant for ERPNext: bank reconciliation, audit checks, collections, WhatsApp and customer portal"
 app_email = "shahrukh@ventureforceglobal.com"
 app_license = "mit"
 
 # Apps
 # ------------------
-
+required_apps = ["erpnext"]
 # required_apps = []
 
 # Each item in the list will be shown as an app in the apps page
