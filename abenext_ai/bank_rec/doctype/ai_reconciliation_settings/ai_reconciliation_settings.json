@@ -12,6 +12,7 @@
   "column_break_1",
   "match_payment_entry",
   "match_journal_entry",
+  "use_ai_suggestions",
   "section_accounts",
   "bank_charges_account",
   "withholding_tax_account"
@@ -57,6 +58,13 @@
    "label": "Match Journal Entries"
   },
   {
+   "default": "1",
+   "description": "After the rules, ask the AI to suggest matches for the remaining lines. Needs an active license with the bank_rec module.",
+   "fieldname": "use_ai_suggestions",
+   "fieldtype": "Check",
+   "label": "Use AI Suggestions"
+  },
+  {
    "fieldname": "section_accounts",
    "fieldtype": "Section Break",
    "label": "Accounts for Missing Entries"
@@ -77,7 +85,7 @@
  "index_web_pages_for_search": 1,
  "issingle": 1,
  "links": [],
- "modified": "2026-10-26 12:00:00.000000",
+ "modified": "2026-10-27 12:00:00.000000",
  "modified_by": "Administrator",
  "module": "Bank Rec",
  "name": "AI Reconciliation Settings",

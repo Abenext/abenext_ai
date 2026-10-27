@@ -22,3 +22,16 @@ frappe.ui.form.on("AI Settings", {
 		});
 	},
 });
+
+frappe.ui.form.on("AI Settings", {
+	refresh(frm) {
+		const notices = {
+			Grace: [__("The subscription payment is overdue. AI suggestions will pause soon."), "orange"],
+			Suspended: [__("AI suggestions are paused until the subscription is paid. Your ERPNext keeps working."), "red"],
+		};
+		const notice = notices[frm.doc.license_status];
+		if (notice) {
+			frm.set_intro(notice[0], notice[1]);
+		}
+	},
+});

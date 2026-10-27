@@ -87,7 +87,9 @@ def find_matches(lines, entries, date_tolerance=3, amount_tolerance=0.0, referen
 		if len(named) == 1:
 			e = named[0]
 			record(line, SUGGESTED, 85, "Same amount within %d day(s), and %s appears in the bank description." % (date_tolerance, e["party"]), [e])
-		elif len(options) == 1 and not named:
+		elif len(options) == 1 and not named and not options[0].get("party"):
+			# Only for entries without a party (for example a Journal Entry). Entries with a
+			# party are left to the AI, which can tell that "ATM Cash Withdrawal" is not that party.
 			e = options[0]
 			record(line, SUGGESTED, 60, "The only entry with this amount within %d day(s). Check before accepting." % date_tolerance, [e])
 

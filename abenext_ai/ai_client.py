@@ -70,6 +70,7 @@ def process(task, payload=None):
 	except ValueError:
 		data = {}
 	if response.status_code != 200 or not data.get("ok"):
+		_remember_license(data.get("license") or {})
 		reason = data.get("error") or _("The Abenext server returned an error (HTTP {0}).").format(response.status_code)
 		raise AIServerError(reason)
 	_remember_license(data.get("license") or {})
@@ -79,12 +80,28 @@ def process(task, payload=None):
 def _remember_license(info):
 	if not info:
 		return
+	old_status = frappe.db.get_single_value("AI Settings", "license_status")
 	values = {"last_sync": now_datetime()}
 	for field in ("status", "valid_till", "modules"):
 		if field in info:
 			target = {"status": "license_status", "modules": "modules_enabled"}.get(field, field)
 			values[target] = ", ".join(info[field]) if isinstance(info[field], list) else info[field]
 	frappe.db.set_single_value("AI Settings", values)
+
+	new_status = values.get("license_status")
+	if new_status and new_status != old_status:
+		from abenext_ai.licensing import notify
+
+		try:
+			notify.status_changed(old_status, new_status, values.get("valid_till"))
+		except Exception:
+			frappe.log_error(title="Abenext AI: license notice failed")
+
+
+@frappe.whitelist()
+def license_status():
+	"""Status shown in the warning banner on AI forms."""
+	return frappe.db.get_single_value("AI Settings", "license_status")
 
 
 @frappe.whitelist()
@@ -94,6 +111,8 @@ def test_connection():
 	try:
 		result = process("ai.ping")
 	except AIServerError as exc:
+		# Keep the license status the server reported, even though this request ends in an error.
+		frappe.db.commit()
 		frappe.throw(str(exc), title=_("Connection failed"))
 	frappe.db.commit()
 	return result

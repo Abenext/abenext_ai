@@ -11,6 +11,8 @@ required_apps = ["erpnext"]
 fixtures = [
     {"dt": "AI Bank Format", "filters": [["name", "in", ["Meezan Bank - Account Statement"]]]},
 ]
+scheduler_events = {"hourly": ["abenext_ai.licensing.sync.run"]}
+app_include_js = "/assets/abenext_ai/js/abenext_license.js"
 # required_apps = []
 
 # Each item in the list will be shown as an app in the apps page

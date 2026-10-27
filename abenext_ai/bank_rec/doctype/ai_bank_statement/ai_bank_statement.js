@@ -15,6 +15,7 @@ frappe.ui.form.on("AI Bank Statement", {
 
 	refresh(frm) {
 		show_status(frm);
+		show_license_banner(frm);
 		if (frm.doc.docstatus !== 0 || frm.is_new() || BUSY.includes(frm.doc.status)) {
 			return;
 		}
@@ -67,6 +68,15 @@ function add_review_buttons(frm, lines) {
 				call(frm, "skip_unmatched", {}).then((r) => {
 					frappe.show_alert({ message: __("{0} line(s) skipped.", [r.changed]), indicator: "green" });
 				});
+			});
+		}, review);
+	}
+
+	const skipped = lines.filter((row) => row.line_status === "Skipped").length;
+	if (skipped) {
+		frm.add_custom_button(__("Return All Skipped to Pending ({0})", [skipped]), () => {
+			call(frm, "return_skipped_to_pending", {}).then((r) => {
+				frappe.show_alert({ message: __("{0} line(s) back to Pending.", [r.changed]), indicator: "green" });
 			});
 		}, review);
 	}
@@ -199,4 +209,18 @@ function show_status(frm) {
 	if (message) {
 		frm.set_intro(message[0], message[1]);
 	}
+}
+
+function show_license_banner(frm) {
+	frappe.xcall("abenext_ai.ai_client.license_status").then((status) => {
+		if (status === "Suspended") {
+			frm.dashboard.set_headline_alert(
+				__("AI suggestions are paused: the Abenext subscription needs attention. Reading statements, rule matching and reconciliation still work."),
+				"red");
+		} else if (status === "Grace") {
+			frm.dashboard.set_headline_alert(
+				__("The Abenext subscription payment is overdue. AI suggestions will pause soon."),
+				"orange");
+		}
+	});
 }

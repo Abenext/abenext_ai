@@ -337,6 +337,13 @@ def run_matching(name):
 			reference_window=REFERENCE_WINDOW_DAYS,
 		)
 
+		ai_note = ""
+		if settings.use_ai_suggestions is None or settings.use_ai_suggestions:
+			remaining = [line for line in lines if line["key"] not in results]
+			taken = {e["id"] for found in results.values() for e in found["entries"]}
+			ai_results, ai_note = _ai_suggestions(remaining, [e for e in entries if e["id"] not in taken])
+			results.update(ai_results)
+
 		by_name = {row.name: row for row in pending}
 		for key, found in results.items():
 			first = found["entries"][0]
@@ -355,7 +362,7 @@ def run_matching(name):
 		suggested = len(results) - exact
 		doc.status = "Ready for Review"
 		doc.error_log = _("Exact matches: {0}. Suggested matches: {1}. No match found: {2}.").format(
-			exact, suggested, len(pending) - len(results))
+			exact, suggested, len(pending) - len(results)) + (" " + ai_note if ai_note else "")
 		doc.flags.ignore_permissions = True
 		doc.flags.from_job = True
 		doc.save()
@@ -637,6 +644,86 @@ def skip_unmatched(name):
 	for row in doc.lines:
 		if row.line_status == "Pending" and not row.matched_voucher:
 			row.line_status = "Skipped"
+			count += 1
+	_save_review(doc)
+	return {"changed": count}
+
+
+# ---------------------------------------------------------------- AI suggestions
+
+AI_BATCH = 40
+AI_MAX_DAYS = 7
+
+
+def _ai_suggestions(lines, entries):
+	"""Ask the Abenext server for suggestions on lines the rules could not match.
+
+	Sends only the lines and a short list of nearby candidate entries. Returns
+	(results, note). Any failure leaves the rule results untouched.
+	"""
+	from abenext_ai import ai_client
+
+	results, used, asked = {}, set(), 0
+	by_id = {e["id"]: e for e in entries}
+
+	def direction(line):
+		return "in" if line["deposit"] else "out"
+
+	def amount(line):
+		return line["deposit"] or line["withdrawal"]
+
+	candidates_for = {}
+	for line in lines:
+		near = [e for e in entries if e["direction"] == direction(line)
+			and e["amount"] <= amount(line) + 0.01 and abs((e["date"] - line["date"]).days) <= AI_MAX_DAYS]
+		if near:
+			candidates_for[line["key"]] = near
+	todo = [line for line in lines if line["key"] in candidates_for]
+	if not todo:
+		return {}, ""
+
+	try:
+		for start in range(0, len(todo), AI_BATCH):
+			batch = todo[start:start + AI_BATCH]
+			pool = {}
+			for line in batch:
+				for e in candidates_for[line["key"]]:
+					if e["id"] not in used:
+						pool[e["id"]] = e
+			if not pool:
+				continue
+			answer = ai_client.process("bank.suggest", {
+				"lines": [{"id": line["key"], "date": str(line["date"]), "direction": direction(line),
+					"amount": amount(line), "description": line["description"]} for line in batch],
+				"candidates": [{"id": e["id"], "date": str(e["date"]), "direction": e["direction"],
+					"amount": e["amount"], "party": e.get("party") or "", "reference": e.get("reference") or ""}
+					for e in list(pool.values())[:150]],
+			})
+			asked += len(batch)
+			for found in answer.get("matches") or []:
+				ids = found.get("entries") or []
+				if found.get("line") in results or any(i not in by_id or i in used for i in ids):
+					continue
+				results[found["line"]] = {
+					"type": match.SUGGESTED,
+					"confidence": found.get("confidence") or 50,
+					"reason": _("AI: {0}").format(found.get("reason") or _("matched by description")),
+					"entries": [by_id[i] for i in ids],
+				}
+				used.update(ids)
+	except ai_client.AIServerError as exc:
+		return results, _("AI suggestions were not available: {0}").format(str(exc))
+	return results, _("AI checked {0} line(s) and suggested {1}.").format(asked, len(results))
+
+
+@frappe.whitelist()
+def return_skipped_to_pending(name):
+	"""Put every skipped line back to Pending, for example to match them again."""
+	doc = _review_doc(name)
+	count = 0
+	for row in doc.lines:
+		if row.line_status == "Skipped":
+			row.line_status = "Pending"
 			count += 1
 	_save_review(doc)
 	return {"changed": count}
