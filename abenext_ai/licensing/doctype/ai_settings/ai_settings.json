@@ -1,14 +1,13 @@
 {
  "actions": [],
- "allow_rename": 0,
- "creation": "2026-10-26 12:00:00.000000",
+ "creation": "2026-10-27 03:00:00.000000",
  "doctype": "DocType",
  "engine": "InnoDB",
  "field_order": [
   "section_license",
   "server_url",
-  "license_key",
-  "dev_mode",
+  "license_id",
+  "signing_secret",
   "column_break_1",
   "license_status",
   "valid_till",
@@ -22,22 +21,22 @@
    "label": "License"
   },
   {
+   "description": "Abenext server, for example https://pob.vfg.com.pk",
    "fieldname": "server_url",
    "fieldtype": "Data",
    "label": "Server URL",
    "options": "URL"
   },
   {
-   "fieldname": "license_key",
-   "fieldtype": "Password",
-   "label": "License Key"
+   "fieldname": "license_id",
+   "fieldtype": "Data",
+   "label": "License ID"
   },
   {
-   "default": "0",
-   "description": "Call the AI provider directly. Development only.",
-   "fieldname": "dev_mode",
-   "fieldtype": "Check",
-   "label": "Development Mode"
+   "description": "Given with the license. It never leaves this site.",
+   "fieldname": "signing_secret",
+   "fieldtype": "Password",
+   "label": "Signing Secret"
   },
   {
    "fieldname": "column_break_1",
@@ -73,7 +72,7 @@
  "index_web_pages_for_search": 1,
  "issingle": 1,
  "links": [],
- "modified": "2026-10-26 12:00:00.000000",
+ "modified": "2026-10-27 03:00:00.000000",
  "modified_by": "Administrator",
  "module": "Licensing",
  "name": "AI Settings",

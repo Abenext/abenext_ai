@@ -4,4 +4,6 @@ from frappe.model.document import Document
 
 
 class AISettings(Document):
-	pass
+	def validate(self):
+		if self.server_url:
+			self.server_url = self.server_url.strip().rstrip("/")
