@@ -4,7 +4,10 @@ AI-assisted bank reconciliation for ERPNext. Upload a bank statement PDF and Abe
 
 This is the client app. It is installed on each client's ERPNext site and works with the **Abenext Server** app, which holds licensing, billing and all AI processing.
 
-> Proprietary software. Copyright © 2026 Abenext. All rights reserved. See [license.txt](license.txt).
+> Open source under the MIT License. See [license.txt](license.txt).
+>
+> **Free:** statement reading with balance check, Bank Transactions, rule matching, review, reconciliation, and the Audit Watchdog checks.
+> **With an Abenext subscription:** AI suggestions for lines the rules cannot match, AI summaries, and the upcoming AI tools. These run on Abenext's server and need a license.
 
 ## Features
 
@@ -40,24 +43,19 @@ This is the client app. It is installed on each client's ERPNext site and works 
 
 ## Installation
 
-The repository is private. Each client server gets its own read-only deploy key.
-
 ```bash
 cd ~/frappe-bench
-bench get-app git@github.com:Abenext/abenext_ai.git --branch version-15
-./env/bin/pip install pdfplumber
+bench get-app https://github.com/Abenext/abenext_ai.git
 bench --site <site> install-app abenext_ai
-bench --site <site> set-config host_name "https://<site>"
-bench --site <site> migrate
-bench build --app abenext_ai
-bench restart
 ```
+
+That's all for the free features. Modules, rules and settings are set up automatically.
 
 Then in the site:
 
-1. **AI Settings**: enter Server URL, License ID and Signing Secret (from the AI License on the Abenext server). Save, then click **Test Connection**.
-2. **Bank Account**: tick **Is Company Account** and link the bank's GL account.
-3. **AI Reconciliation Settings**: check tolerances and set the bank charges account.
+1. **Bank Account**: for each bank account you will reconcile, tick **Is Company Account** and choose its GL account.
+2. **AI Reconciliation Settings**: check the tolerances and set your bank charges account.
+3. **For AI features** (optional): enter the Server URL, License ID and Signing Secret from your Abenext subscription in **AI Settings**, then click **Test Connection**. Without a license, everything else keeps working.
 
 ## Using it
 
@@ -93,7 +91,8 @@ abenext_ai/
 
 - No client-specific code: a client need becomes a setting, or a paid customization in a separate app.
 - Never modify standard ERPNext doctypes or core code. Use hooks, own doctypes and fixtures.
-- No AI provider keys, prompts or matching prompts in this app; they live on the Abenext server.
+- No AI provider keys or prompts in this app; they live on the Abenext server.
+- Contributions are welcome through pull requests to `develop`.
 - Long work runs in background jobs, and every job writes its outcome to the document.
 - Nothing posts to the books without a person's click.
 - Branches: `develop` for daily work; `version-15` for releases, tagged `vX.Y.Z`.

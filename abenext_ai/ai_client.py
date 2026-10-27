@@ -26,8 +26,13 @@ class AIServerError(Exception):
 
 
 def site_url():
-	"""This site's public address. Set host_name in site config so background jobs report it correctly."""
-	return (frappe.conf.get("host_name") or frappe.utils.get_url()).strip().rstrip("/")
+	"""This site's address, as written on its license.
+
+	Uses host_name from site config when set; otherwise the site name, which on a client
+	server is normally its domain (for example erp.example.com). No setup needed.
+	"""
+	host = frappe.conf.get("host_name") or ("https://" + frappe.local.site)
+	return host.strip().rstrip("/")
 
 
 def _settings():

@@ -7,26 +7,18 @@ from frappe.utils import now_datetime
 
 from abenext_ai.watchdog.checks import CHECKS, SELF_CLOSING
 
-MODULE = "watchdog"
 ROLES = ("System Manager", "Accounts Manager")
 
 
-def licensed():
-	modules = frappe.db.get_single_value("AI Settings", "modules_enabled") or ""
-	status = frappe.db.get_single_value("AI Settings", "license_status")
-	return MODULE in [m.strip() for m in modules.split(",")] and status in ("Active", "Grace")
-
-
 def daily():
-	if licensed():
-		run_all()
+	# The checks are free and run on the client's own server. AI summaries of the
+	# findings are a paid feature handled by the Abenext server.
+	run_all()
 
 
 @frappe.whitelist()
 def run_now():
 	frappe.only_for(ROLES)
-	if not licensed():
-		frappe.throw(_("Watchdog is not included in your Abenext AI license, or the license is not active."))
 	frappe.enqueue("abenext_ai.watchdog.runner.run_all", queue="long", timeout=3600, enqueue_after_commit=True)
 	return "queued"
 
