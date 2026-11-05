@@ -727,3 +727,11 @@ def return_skipped_to_pending(name):
 			count += 1
 	_save_review(doc)
 	return {"changed": count}
+
+
+@frappe.whitelist()
+def default_charges_account(company):
+	"""Bank charges account for this company, for the Missing Entries dialog."""
+	from abenext_ai.bank_rec.doctype.ai_reconciliation_settings.ai_reconciliation_settings import account_for
+
+	return account_for(company, "bank_charges_account")

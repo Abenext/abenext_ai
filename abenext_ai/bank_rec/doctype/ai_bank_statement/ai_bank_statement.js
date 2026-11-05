@@ -147,7 +147,7 @@ function missing_entries_dialog(frm) {
 			});
 		},
 	});
-	frappe.db.get_single_value("AI Reconciliation Settings", "bank_charges_account").then((account) => {
+	frappe.xcall(`${AIBS}.default_charges_account`, { company: frm.doc.company }).then((account) => {
 		if (account) {
 			dialog.set_value("account", account);
 		}

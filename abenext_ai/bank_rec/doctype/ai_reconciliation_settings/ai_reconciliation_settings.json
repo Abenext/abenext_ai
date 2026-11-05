@@ -15,7 +15,8 @@
   "use_ai_suggestions",
   "section_accounts",
   "bank_charges_account",
-  "withholding_tax_account"
+  "withholding_tax_account",
+  "company_accounts"
  ],
  "fields": [
   {
@@ -70,22 +71,30 @@
    "label": "Accounts for Missing Entries"
   },
   {
+   "description": "Used for any company not listed in the table below.",
    "fieldname": "bank_charges_account",
    "fieldtype": "Link",
-   "label": "Bank Charges Account",
+   "label": "Default Bank Charges Account",
    "options": "Account"
   },
   {
    "fieldname": "withholding_tax_account",
    "fieldtype": "Link",
-   "label": "Withholding Tax Account",
+   "label": "Default Withholding Tax Account",
    "options": "Account"
+  },
+  {
+   "description": "For sites with more than one company: the accounts each company uses for bank charges and withholding tax.",
+   "fieldname": "company_accounts",
+   "fieldtype": "Table",
+   "label": "Accounts by Company",
+   "options": "AI Company Accounts"
   }
  ],
  "index_web_pages_for_search": 1,
  "issingle": 1,
  "links": [],
- "modified": "2026-10-27 12:00:00.000000",
+ "modified": "2026-11-05 10:00:00.000000",
  "modified_by": "Administrator",
  "module": "Bank Rec",
  "name": "AI Reconciliation Settings",

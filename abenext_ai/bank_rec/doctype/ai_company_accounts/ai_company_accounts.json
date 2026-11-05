@@ -1,0 +1,48 @@
+{
+ "actions": [],
+ "creation": "2026-11-05 10:00:00.000000",
+ "doctype": "DocType",
+ "editable_grid": 1,
+ "engine": "InnoDB",
+ "field_order": [
+  "company",
+  "bank_charges_account",
+  "withholding_tax_account"
+ ],
+ "fields": [
+  {
+   "fieldname": "company",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "label": "Company",
+   "options": "Company",
+   "reqd": 1
+  },
+  {
+   "fieldname": "bank_charges_account",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "label": "Bank Charges Account",
+   "options": "Account"
+  },
+  {
+   "fieldname": "withholding_tax_account",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "label": "Withholding Tax Account",
+   "options": "Account"
+  }
+ ],
+ "index_web_pages_for_search": 1,
+ "istable": 1,
+ "links": [],
+ "modified": "2026-11-05 10:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Bank Rec",
+ "name": "AI Company Accounts",
+ "owner": "Administrator",
+ "permissions": [],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": []
+}
