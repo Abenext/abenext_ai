@@ -18,6 +18,16 @@ frappe.listview_settings["AI Watchdog Finding"] = {
 				frappe.show_alert({ message: __("Checks are running. Refresh in a minute."), indicator: "blue" });
 			});
 		});
+		listview.page.add_inner_button(__("Preview Report"), () => {
+			frappe.call({ method: "abenext_ai.watchdog.report.preview_report", freeze: true, freeze_message: __("Preparing the report...") })
+				.then((r) => {
+					const report = r.message || {};
+					const note = report.note ? `<p class="text-muted small">${frappe.utils.escape_html(report.note)}</p>` : "";
+					const dialog = new frappe.ui.Dialog({ title: __("Morning Report (preview, not sent)"), size: "large" });
+					dialog.$body.html(`<div style="max-height:65vh;overflow:auto">${report.html || ""}${note}</div>`);
+					dialog.show();
+				});
+		});
 		const bulk = (status) => {
 			const names = listview.get_checked_items(true);
 			if (!names.length) {

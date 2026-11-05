@@ -3,7 +3,7 @@
 
 import frappe
 
-SINGLES = ("AI Settings", "AI Reconciliation Settings")
+SINGLES = ("AI Settings", "AI Reconciliation Settings", "AI Watchdog Settings")
 NO_VALUE = ("Section Break", "Column Break", "Tab Break", "HTML", "Button", "Table", "Table MultiSelect")
 
 

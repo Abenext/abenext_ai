@@ -19,6 +19,11 @@ before_migrate = ["abenext_ai.setup.ensure_module_defs"]
 after_migrate = ["abenext_ai.setup.after_migrate"]
 after_install = ["abenext_ai.setup.after_install"]
 app_include_js = "/assets/abenext_ai/js/abenext_license.js"
+scheduler_events = {
+    "hourly": ["abenext_ai.licensing.sync.run"],
+    "daily": ["abenext_ai.watchdog.runner.daily"],
+    "cron": {"0 7 * * *": ["abenext_ai.watchdog.report.morning"]},
+}
 # required_apps = []
 
 # Each item in the list will be shown as an app in the apps page

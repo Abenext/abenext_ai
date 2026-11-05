@@ -1,0 +1,86 @@
+{
+ "actions": [],
+ "creation": "2026-11-06 10:00:00.000000",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "section_report",
+  "send_morning_report",
+  "minimum_severity",
+  "use_ai_summary",
+  "column_break_1",
+  "recipients"
+ ],
+ "fields": [
+  {
+   "fieldname": "section_report",
+   "fieldtype": "Section Break",
+   "label": "Morning Report"
+  },
+  {
+   "default": "0",
+   "description": "Email a summary of open findings every morning at 7:00. Use Preview Report on the findings list to see it first.",
+   "fieldname": "send_morning_report",
+   "fieldtype": "Check",
+   "label": "Send Morning Report"
+  },
+  {
+   "default": "Medium",
+   "description": "High: only high. Medium: high and medium. Low: everything.",
+   "fieldname": "minimum_severity",
+   "fieldtype": "Select",
+   "label": "Include Findings From",
+   "options": "High\nMedium\nLow"
+  },
+  {
+   "default": "1",
+   "description": "Add a short plain-language summary and first actions. Needs the Audit Watchdog AI license.",
+   "fieldname": "use_ai_summary",
+   "fieldtype": "Check",
+   "label": "Use AI Summary"
+  },
+  {
+   "fieldname": "column_break_1",
+   "fieldtype": "Column Break"
+  },
+  {
+   "description": "Email addresses, one per line. If empty, all System Managers and Accounts Managers receive it.",
+   "fieldname": "recipients",
+   "fieldtype": "Small Text",
+   "label": "Recipients"
+  }
+ ],
+ "index_web_pages_for_search": 1,
+ "issingle": 1,
+ "links": [],
+ "modified": "2026-11-06 10:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Watchdog",
+ "name": "AI Watchdog Settings",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 0,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 0,
+   "role": "Accounts Manager",
+   "share": 1,
+   "write": 1
+  }
+ ],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": []
+}

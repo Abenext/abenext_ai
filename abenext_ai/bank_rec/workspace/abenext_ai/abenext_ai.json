@@ -76,7 +76,7 @@
    "hidden": 0,
    "is_query_report": 0,
    "label": "Audit Watchdog",
-   "link_count": 2,
+   "link_count": 3,
    "onboard": 0,
    "type": "Card Break"
   },
@@ -101,9 +101,20 @@
    "link_type": "DocType",
    "onboard": 0,
    "type": "Link"
+  },
+  {
+   "dependencies": "",
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "AI Watchdog Settings",
+   "link_count": 0,
+   "link_to": "AI Watchdog Settings",
+   "link_type": "DocType",
+   "onboard": 0,
+   "type": "Link"
   }
  ],
- "modified": "2026-10-28 10:00:00.000000",
+ "modified": "2026-11-06 10:00:00.000000",
  "modified_by": "Administrator",
  "module": "Bank Rec",
  "name": "Abenext AI",
