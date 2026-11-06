@@ -6,6 +6,8 @@ With the Collections Agent tool on the Abenext license: the AI writes the wordin
 invoice table, in the customer's language. Amounts and invoice numbers always come from ERPNext.
 """
 
+import html
+import re
 from collections import defaultdict
 
 import frappe
@@ -191,11 +193,21 @@ def _ai_licensed():
 	return "collections" in [m.strip() for m in modules.split(",")] and status in ("Active", "Grace")
 
 
+JINJA_PART = re.compile(r"({{.*?}}|{%.*?%})", re.S)
+
+
+def _render(template, context):
+	"""Render a stage template. The rich-text editor stores > as &gt; (and similar);
+	turn those back into characters inside the Jinja parts only, so templates keep working after saving."""
+	template = JINJA_PART.sub(lambda m: html.unescape(m.group(0)), template or "")
+	return frappe.render_template(template, context)
+
+
 def _compose(settings, group, stage):
 	"""Return (subject, html_message, ai_written, note)."""
 	context = _context(group, stage)
-	subject = frappe.render_template(stage.subject, context)
-	message = frappe.render_template(stage.message, context)
+	subject = _render(stage.subject, context)
+	message = _render(stage.message, context)
 	if not settings.use_ai:
 		return subject, message, False, ""
 	if not _ai_licensed():
