@@ -7,7 +7,7 @@ from frappe.model.document import Document
 
 class AICollectionsSettings(Document):
 	def validate(self):
-		if self.enabled and self.test_mode and not self.test_recipient:
+		if self.send_reminders and self.test_mode and not self.test_recipient:
 			frappe.throw(_("Set a Test Recipient, or turn Test Mode off."))
 		days = [row.days_overdue for row in self.stages]
 		if len(days) != len(set(days)):

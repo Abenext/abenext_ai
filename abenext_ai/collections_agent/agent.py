@@ -25,7 +25,7 @@ def _settings():
 
 def daily():
 	settings = _settings()
-	if settings.enabled:
+	if settings.send_reminders:
 		run(settings, send=True)
 
 

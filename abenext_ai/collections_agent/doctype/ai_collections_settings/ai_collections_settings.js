@@ -2,7 +2,14 @@
 
 frappe.ui.form.on("AI Collections Settings", {
 	refresh(frm) {
-		if (frm.doc.enabled && !frm.doc.test_mode) {
+		if (!frm.doc.send_reminders) {
+			frm.page.set_indicator(__("Reminders off"), "gray");
+		} else if (frm.doc.test_mode) {
+			frm.page.set_indicator(__("Test Mode"), "blue");
+		} else {
+			frm.page.set_indicator(__("Sending to customers"), "green");
+		}
+		if (frm.doc.send_reminders && !frm.doc.test_mode) {
 			frm.set_intro(__("Reminders are going to real customers."), "orange");
 		} else if (frm.doc.test_mode) {
 			frm.set_intro(__("Test Mode: every message goes to {0}.", [frm.doc.test_recipient || __("(no test recipient set)")]), "blue");
