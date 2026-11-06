@@ -23,9 +23,25 @@ DEFAULT_LAYOUT = {
 	},
 	"opening_balance_label": "opening balance",
 	"closing_balance_label": "closing balance",
+	# Rows inside the table that carry the opening or closing balance instead of a transaction.
+	"opening_row_labels": ["opening balance", "balance b/f", "balance brought forward", "balance forward"],
+	"closing_row_labels": ["closing balance", "balance c/f", "balance carried forward"],
 	"footer_margin": 40,
 	"ignore_line_patterns": [],
+	# Lines under a transaction that only carry its reference, for example "54546884055 45,000.00 0.00".
+	"reference_line_patterns": [],
+	# Points below a header line that still belong to the same header (headers printed over 2-3 lines).
+	"header_depth": 14,
 }
+
+# Optional columns a format may name besides the usual ones:
+#   "amount"    one signed column instead of debit and credit (negative, bracketed or DR = money out)
+#   "fee"       a separate fee column, added to the money going out
+#   "reference" a column holding the bank's reference number
+#   any other name (for example "opening" or "channel") is read and ignored, so its words do not
+#   spill into the description.
+
+TIME_ONLY = re.compile(r"^\d{1,2}:\d{2}(:\d{2})?\s*([AP]M)?$", re.I)
 
 AMOUNT_TOKEN = re.compile(r"^[+-]?\(?(?:[A-Z]{3})?\s*-?[\d,]+(?:\.\d+)?\)?(?:\s*(?:CR|DR))?$", re.I)
 
@@ -92,7 +108,7 @@ def _lines(words, tolerance=3):
 def _find_header(line, layout):
 	"""Return {column: centre_x} if this line is the table header, else None."""
 	text = line["text"].lower()
-	found = {}
+	found, starts = {}, {}
 	for column, keywords in layout["columns"].items():
 		for keyword in sorted(keywords, key=len, reverse=True):
 			parts = keyword.split()
@@ -101,17 +117,43 @@ def _find_header(line, layout):
 				if chunk == parts:
 					first, last = line["words"][i], line["words"][i + len(parts) - 1]
 					found[column] = (first["x0"] + last["x1"]) / 2
+					starts[column] = first["x0"]
 					break
 			if column in found:
 				break
 	required = {"date", "description", "balance"}
-	if required <= set(found) and ("debit" in found or "credit" in found) and len(text) < 200:
+	if required <= set(found) and ({"debit", "credit", "amount"} & set(found)) and len(text) < 250:
+		found["_starts"] = starts
 		return found
 	return None
 
 
-def _column_of(word, centres):
+def _header_at(lines, index, layout):
+	"""Header found on this line, alone or merged with the lines printed just below it.
+
+	Returns (centres, number_of_lines_used) or (None, 0).
+	"""
+	top = lines[index]["top"]
+	group = []
+	for line in lines[index:index + 3]:
+		if line["top"] - top > (layout.get("header_depth") or 0) and group:
+			break
+		group.append(line)
+		words = sorted((w for l in group for w in l["words"]), key=lambda w: (round(w["x0"]), w["top"]))
+		merged = {"top": top, "words": words, "text": " ".join(w["text"] for w in words)}
+		found = _find_header(merged, layout)
+		if found:
+			return found, len(group)
+	return None, 0
+
+
+def _column_of(word, centres, starts=None, wide_description=False):
 	middle = (word["x0"] + word["x1"]) / 2
+	if wide_description and starts and "description" in starts:
+		begin = starts["description"]
+		later = [x for x in starts.values() if x > begin + 1]
+		if begin - 5 <= middle < (min(later) - 5 if later else float("inf")):
+			return "description"
 	return min(centres, key=lambda c: abs(centres[c] - middle))
 
 
@@ -121,12 +163,25 @@ def _label_value(lines, label):
 	for index, line in enumerate(lines):
 		words = line["words"]
 		for i in range(len(words) - len(parts) + 1):
-			if [w["text"].lower() for w in words[i:i + len(parts)]] == parts:
-				x0 = words[i]["x0"]
+			if [w["text"].lower().rstrip(":") for w in words[i:i + len(parts)]] == parts:
+				x0, x1 = words[i]["x0"], words[i + len(parts) - 1]["x1"]
 				for below in lines[index + 1:index + 3]:
 					for w in below["words"]:
-						if abs(w["x0"] - x0) < 15 and AMOUNT_TOKEN.match(w["text"]):
+						lined_up = abs(w["x0"] - x0) < 15 or (w["x0"] < x1 and w["x1"] > x0)
+						if lined_up and AMOUNT_TOKEN.match(w["text"]):
 							return money(w["text"])
+	return None
+
+
+def _balance_label(text, layout):
+	"""'opening' or 'closing' if this row only carries a balance, else None."""
+	text = " ".join((text or "").lower().split())
+	for label in sorted(layout.get("closing_row_labels") or [], key=len, reverse=True):
+		if text.startswith(label):
+			return "closing"
+	for label in sorted(layout.get("opening_row_labels") or [], key=len, reverse=True):
+		if text.startswith(label):
+			return "opening"
 	return None
 
 
@@ -148,60 +203,99 @@ def page_text(pages, first=1):
 
 def parse_statement(pages, layout):
 	"""Turn PDF words into statement lines and run the running-balance check."""
-	ignore = [re.compile(p) for p in layout.get("ignore_line_patterns") or []]
+	ignore = [re.compile(p, re.I) for p in layout.get("ignore_line_patterns") or []]
+	ref_lines = [re.compile(p) for p in layout.get("reference_line_patterns") or []]
 	all_first_page_lines = _lines(pages[0]["words"]) if pages else []
 	opening = _label_value(all_first_page_lines, layout["opening_balance_label"])
 	closing = _label_value(all_first_page_lines, layout["closing_balance_label"])
+	row_opening = row_closing = None
+	money_columns = ("debit", "credit", "amount", "fee", "balance")
 
-	rows, rejected, centres = [], [], None
+	rows, rejected, centres, starts = [], [], None, {}
 	for page_no, page in enumerate(pages, 1):
 		bottom = page["height"] - (layout.get("footer_margin") or 0)
 		in_table = False
-		for line in _lines(page["words"]):
+		page_lines = _lines(page["words"])
+		skip = 0
+		for index, line in enumerate(page_lines):
+			if skip:
+				skip -= 1
+				continue
 			if line["top"] > bottom or any(p.search(line["text"]) for p in ignore):
 				continue
-			header = _find_header(line, layout)
+			header, used = _header_at(page_lines, index, layout)
 			if header:
-				centres, in_table = header, True
+				starts = header.pop("_starts", {})
+				centres, in_table, skip = header, True, used - 1
 				continue
 			if not in_table or not centres:
 				continue
 
+			if rows and any(p.search(line["text"]) for p in ref_lines):
+				match = next(p.search(line["text"]) for p in ref_lines if p.search(line["text"]))
+				rows[-1]["reference"] = rows[-1].get("reference") or (match.group(1) if match.groups() else match.group(0))
+				continue
+
 			cells = {c: [] for c in centres}
 			for word in line["words"]:
-				cells[_column_of(word, centres)].append(word["text"])
+				cells[_column_of(word, centres, starts, layout.get("wide_description"))].append(word["text"])
 			cells = {c: " ".join(v).strip() for c, v in cells.items()}
 
 			row_date, spill = _leading_date(cells.get("date", ""), layout["date_formats"])
+			label_text = (spill if row_date else cells.get("date", "")) + " " + cells.get("description", "")
+			label = _balance_label(label_text, layout)
+			if label:
+				value = money(cells.get("balance")) if cells.get("balance") else None
+				if value is None and label == "opening":
+					value = money(cells.get("opening")) if cells.get("opening") else None
+				if label == "opening":
+					row_opening = value
+				else:
+					row_closing = value
+				continue
+
 			if row_date:
-				rows.append({
-					"date": row_date, "description": (spill + " " + cells.get("description", "")).strip(),
-					"debit_raw": cells.get("debit", ""), "credit_raw": cells.get("credit", ""),
-					"balance_raw": cells.get("balance", ""), "page": page_no,
-				})
+				rows.append(dict({column + "_raw": cells.get(column, "") for column in money_columns},
+					date=row_date, description=(spill + " " + cells.get("description", "")).strip(),
+					reference=cells.get("reference", ""), page=page_no))
 			elif rows:
 				last = rows[-1]
-				extra = " ".join(v for c, v in cells.items() if c in ("date", "description") and v)
+				date_part = "" if TIME_ONLY.match(cells.get("date", "")) else cells.get("date", "")
+				extra = " ".join(v for v in (date_part, cells.get("description", "")) if v)
 				if extra:
-					joiner = "" if last["description"].endswith("-") else " "
+					joiner = "" if (last["description"].endswith("-") and not last["description"].endswith(" -")) else " "
 					last["description"] = (last["description"] + joiner + extra).strip()
-				for column in ("debit", "credit", "balance"):
+				if cells.get("reference") and not last.get("reference"):
+					last["reference"] = cells["reference"]
+				for column in money_columns:
 					if cells.get(column) and not last[column + "_raw"]:
 						last[column + "_raw"] = cells[column]
 
 	if centres is None:
 		raise StatementError("Could not find the table header (Date, Description, Balance) in this PDF.")
 
+	# Rows printed inside the table win over values found near labels at the top of the page.
+	opening = row_opening if row_opening is not None else opening
+	closing = row_closing if row_closing is not None else closing
+	# Some banks list the newest transaction first.
+	if len(rows) > 1 and rows[0]["date"] > rows[-1]["date"]:
+		rows.reverse()
+
 	result, previous = [], opening
 	for number, row in enumerate(rows, 1):
 		try:
 			debit = money(row["debit_raw"]) or Decimal("0.00")
 			credit = money(row["credit_raw"]) or Decimal("0.00")
+			amount = money(row["amount_raw"])
+			fee = abs(money(row["fee_raw"]) or Decimal("0.00"))
 			balance = money(row["balance_raw"])
 		except StatementError as exc:
 			rejected.append({"line": number, "page": row["page"], "reason": str(exc)})
 			continue
 		debit, credit = abs(debit), abs(credit)
+		if amount is not None and not (debit or credit):
+			debit, credit = (abs(amount), Decimal("0.00")) if amount < 0 else (Decimal("0.00"), amount)
+		debit += fee
 		if balance is None or (debit and credit) or not (debit or credit):
 			rejected.append({"line": number, "page": row["page"],
 				"reason": "Line needs exactly one of debit or credit, and a balance"})
@@ -209,13 +303,16 @@ def parse_statement(pages, layout):
 		ok = previous is None or (previous + credit - debit) == balance
 		result.append({
 			"date": row["date"].isoformat(), "description": row["description"],
-			"reference_no": _reference(row["description"]),
+			"reference_no": (row.get("reference") or "").strip() or _reference(row["description"]),
 			"debit": str(debit), "credit": str(credit), "balance": str(balance),
 			"balance_ok": ok, "page": row["page"],
 		})
 		previous = balance
 
-	closing_ok = closing is None or (result and Decimal(result[-1]["balance"]) == closing)
+	if result:
+		closing_ok = closing is None or Decimal(result[-1]["balance"]) == closing
+	else:
+		closing_ok = closing is None or opening is None or opening == closing
 	return {
 		"opening_balance": str(opening) if opening is not None else None,
 		"closing_balance": str(closing) if closing is not None else None,

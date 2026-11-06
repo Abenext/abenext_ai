@@ -9,7 +9,13 @@ app_license = "mit"
 # ------------------
 required_apps = ["erpnext"]
 fixtures = [
-    {"dt": "AI Bank Format", "filters": [["name", "in", ["Meezan Bank - Account Statement"]]]},
+    {"dt": "AI Bank Format", "filters": [["name", "in", [
+        "Meezan Bank - Account Statement",
+        "Easypaisa - Statement of Account",
+        "Faysal Bank - Account Statement",
+        "JazzCash - Account Statement",
+        "Raqami - E-Statement",
+    ]]]},
 ]
 scheduler_events = {
     "hourly": ["abenext_ai.licensing.sync.run"],
