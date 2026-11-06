@@ -1,0 +1,81 @@
+{
+ "actions": [],
+ "creation": "2026-11-06 14:00:00.000000",
+ "doctype": "DocType",
+ "editable_grid": 0,
+ "engine": "InnoDB",
+ "field_order": [
+  "days_overdue",
+  "stage_name",
+  "tone",
+  "attach_invoices",
+  "section_message",
+  "subject",
+  "message"
+ ],
+ "fields": [
+  {
+   "columns": 1,
+   "fieldname": "days_overdue",
+   "fieldtype": "Int",
+   "in_list_view": 1,
+   "label": "Days Overdue",
+   "reqd": 1
+  },
+  {
+   "columns": 2,
+   "fieldname": "stage_name",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Stage",
+   "reqd": 1
+  },
+  {
+   "columns": 2,
+   "default": "Friendly",
+   "fieldname": "tone",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "label": "Tone",
+   "options": "Friendly\nFirm\nFinal notice"
+  },
+  {
+   "columns": 1,
+   "default": "1",
+   "fieldname": "attach_invoices",
+   "fieldtype": "Check",
+   "in_list_view": 1,
+   "label": "Attach Invoices"
+  },
+  {
+   "fieldname": "section_message",
+   "fieldtype": "Section Break",
+   "label": "Message"
+  },
+  {
+   "fieldname": "subject",
+   "fieldtype": "Data",
+   "label": "Subject",
+   "reqd": 1
+  },
+  {
+   "description": "Jinja. Available: customer_name, company, invoice_table, total_text, invoice_count, oldest_days, stage_name.",
+   "fieldname": "message",
+   "fieldtype": "Text Editor",
+   "label": "Message",
+   "reqd": 1
+  }
+ ],
+ "index_web_pages_for_search": 1,
+ "istable": 1,
+ "links": [],
+ "modified": "2026-11-06 14:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Collections Agent",
+ "name": "AI Collection Stage",
+ "owner": "Administrator",
+ "permissions": [],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": []
+}

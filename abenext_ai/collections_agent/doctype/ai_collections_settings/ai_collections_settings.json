@@ -1,0 +1,115 @@
+{
+ "actions": [],
+ "creation": "2026-11-06 14:00:00.000000",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "section_main",
+  "enabled",
+  "test_mode",
+  "test_recipient",
+  "column_break_1",
+  "minimum_amount",
+  "use_ai",
+  "cc",
+  "section_stages",
+  "stages"
+ ],
+ "fields": [
+  {
+   "fieldname": "section_main",
+   "fieldtype": "Section Break",
+   "label": "Collections Agent"
+  },
+  {
+   "default": "0",
+   "description": "Off by default. When on, reminders go out every day at 10:00.",
+   "fieldname": "enabled",
+   "fieldtype": "Check",
+   "label": "Send Reminders"
+  },
+  {
+   "default": "1",
+   "description": "Every message goes to the Test Recipient instead of the customer. Turn off only when you are ready.",
+   "fieldname": "test_mode",
+   "fieldtype": "Check",
+   "label": "Test Mode"
+  },
+  {
+   "fieldname": "test_recipient",
+   "fieldtype": "Data",
+   "label": "Test Recipient",
+   "options": "Email"
+  },
+  {
+   "fieldname": "column_break_1",
+   "fieldtype": "Column Break"
+  },
+  {
+   "default": "0",
+   "description": "Customers owing less than this (in company currency) are not chased.",
+   "fieldname": "minimum_amount",
+   "fieldtype": "Currency",
+   "label": "Minimum Amount Due"
+  },
+  {
+   "default": "1",
+   "description": "With the Collections Agent tool on your Abenext license, the AI writes the message around the invoice table, in the customer's language. Amounts always come from ERPNext.",
+   "fieldname": "use_ai",
+   "fieldtype": "Check",
+   "label": "Use AI Wording"
+  },
+  {
+   "description": "Optional copy of every real reminder, for example your accounts team.",
+   "fieldname": "cc",
+   "fieldtype": "Data",
+   "label": "CC",
+   "options": "Email"
+  },
+  {
+   "description": "The stage is chosen by the oldest overdue invoice. Each stage is sent once per customer until everything is paid.",
+   "fieldname": "section_stages",
+   "fieldtype": "Section Break",
+   "label": "Stages"
+  },
+  {
+   "fieldname": "stages",
+   "fieldtype": "Table",
+   "label": "Stages",
+   "options": "AI Collection Stage"
+  }
+ ],
+ "index_web_pages_for_search": 1,
+ "issingle": 1,
+ "links": [],
+ "modified": "2026-11-06 14:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Collections Agent",
+ "name": "AI Collections Settings",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 0,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 0,
+   "role": "Accounts Manager",
+   "share": 1,
+   "write": 1
+  }
+ ],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": []
+}

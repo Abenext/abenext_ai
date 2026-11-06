@@ -1,6 +1,6 @@
 {
  "charts": [],
- "content": "[{\"id\": \"abx-h1\", \"type\": \"header\", \"data\": {\"text\": \"<span class=\\\"h4\\\"><b>Abenext AI</b></span>\", \"col\": 12}}, {\"id\": \"abx-s1\", \"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"AI Bank Statement\", \"col\": 3}}, {\"id\": \"abx-s2\", \"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"AI Reconciliation Settings\", \"col\": 3}}, {\"id\": \"abx-s3\", \"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"AI Settings\", \"col\": 3}}, {\"id\": \"abx-s4\", \"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"AI Watchdog Finding\", \"col\": 3}}, {\"id\": \"abx-sp\", \"type\": \"spacer\", \"data\": {\"col\": 12}}, {\"id\": \"abx-c1\", \"type\": \"card\", \"data\": {\"card_name\": \"Bank Reconciliation\", \"col\": 4}}, {\"id\": \"abx-c2\", \"type\": \"card\", \"data\": {\"card_name\": \"Settings\", \"col\": 4}}, {\"id\": \"abx-c3\", \"type\": \"card\", \"data\": {\"card_name\": \"Audit Watchdog\", \"col\": 4}}]",
+ "content": "[{\"id\": \"abx-h1\", \"type\": \"header\", \"data\": {\"text\": \"<span class=\\\"h4\\\"><b>Abenext AI</b></span>\", \"col\": 12}}, {\"id\": \"abx-s1\", \"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"AI Bank Statement\", \"col\": 3}}, {\"id\": \"abx-s2\", \"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"AI Reconciliation Settings\", \"col\": 3}}, {\"id\": \"abx-s3\", \"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"AI Settings\", \"col\": 3}}, {\"id\": \"abx-s4\", \"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"AI Watchdog Finding\", \"col\": 3}}, {\"id\": \"abx-sp\", \"type\": \"spacer\", \"data\": {\"col\": 12}}, {\"id\": \"abx-c1\", \"type\": \"card\", \"data\": {\"card_name\": \"Bank Reconciliation\", \"col\": 4}}, {\"id\": \"abx-c2\", \"type\": \"card\", \"data\": {\"card_name\": \"Settings\", \"col\": 4}}, {\"id\": \"abx-c3\", \"type\": \"card\", \"data\": {\"card_name\": \"Audit Watchdog\", \"col\": 4}}, {\"id\": \"abx-c4\", \"type\": \"card\", \"data\": {\"card_name\": \"Collections Agent\", \"col\": 4}}]",
  "creation": "2026-10-26 12:00:00.000000",
  "custom_blocks": [],
  "docstatus": 0,
@@ -112,9 +112,39 @@
    "link_type": "DocType",
    "onboard": 0,
    "type": "Link"
+  },
+  {
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Collections Agent",
+   "link_count": 2,
+   "onboard": 0,
+   "type": "Card Break"
+  },
+  {
+   "dependencies": "",
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "AI Collections Settings",
+   "link_count": 0,
+   "link_to": "AI Collections Settings",
+   "link_type": "DocType",
+   "onboard": 0,
+   "type": "Link"
+  },
+  {
+   "dependencies": "",
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "AI Collection Log",
+   "link_count": 0,
+   "link_to": "AI Collection Log",
+   "link_type": "DocType",
+   "onboard": 0,
+   "type": "Link"
   }
  ],
- "modified": "2026-11-06 10:00:00.000000",
+ "modified": "2026-11-06 14:00:00.000000",
  "modified_by": "Administrator",
  "module": "Bank Rec",
  "name": "Abenext AI",

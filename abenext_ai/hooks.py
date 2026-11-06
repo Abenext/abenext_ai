@@ -20,6 +20,10 @@ fixtures = [
 scheduler_events = {
     "hourly": ["abenext_ai.licensing.sync.run"],
     "daily": ["abenext_ai.watchdog.runner.daily"],
+    "cron": {
+        "0 7 * * *": ["abenext_ai.watchdog.report.morning"],
+        "0 10 * * *": ["abenext_ai.collections_agent.agent.daily"],
+    },
 }
 before_migrate = ["abenext_ai.setup.ensure_module_defs"]
 after_migrate = ["abenext_ai.setup.after_migrate"]
