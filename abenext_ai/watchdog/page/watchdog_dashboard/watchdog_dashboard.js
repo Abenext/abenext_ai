@@ -74,6 +74,8 @@ class WatchdogDashboard {
 		const d = this.data;
 		const status = this.status.get_value() || "Open";
 		this.$root.html(`
+			${d.scheduler_paused ? `<div class="abx-paused">${frappe.utils.icon("solid-warning", "sm")}
+				<span>${esc(__("Scheduled jobs are paused on this site, so the nightly checks do not run. Use Run Checks Now, or ask your administrator to resume the scheduler."))}</span></div>` : ""}
 			<div class="abx-wd-grid">
 				<aside class="abx-wd-col">
 					<div class="abx-wd-summary">
@@ -255,6 +257,8 @@ class WatchdogDashboard {
 			.abx-hist { display: flex; gap: 10px; margin-top: 10px; }
 			.abx-dot { width: 8px; height: 8px; border-radius: 50%; margin-top: 7px; flex: none; }
 			.abx-dot.ok { background: #16a34a; } .abx-dot.ign { background: #d97706; }
+			.abx-paused { display: flex; gap: 8px; align-items: center; border-radius: 10px; padding: 10px 14px; margin-bottom: 16px;
+				background: rgba(217,119,6,.12); color: var(--text-color); border: 1px solid rgba(217,119,6,.35); }
 		</style>`).appendTo("head");
 	}
 }

@@ -127,6 +127,7 @@ def overview(company=None, status="Open"):
 		"last_run": pretty_date(last_run) if last_run else "",
 		"companies": frappe.get_all("Company", pluck="name"),
 		"ai_available": _ai_licensed(),
+		"scheduler_paused": frappe.get_attr("abenext_ai.setup.scheduler_paused")(),
 	}
 
 

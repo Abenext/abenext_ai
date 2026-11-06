@@ -116,3 +116,14 @@ def after_migrate():
 	from abenext_ai.watchdog.setup import ensure_rules
 
 	ensure_rules()
+
+
+@frappe.whitelist()
+def scheduler_paused():
+	"""True when this site's scheduled jobs do not run (paused, disabled or in maintenance)."""
+	from frappe.utils import scheduler
+
+	inactive = getattr(scheduler, "is_scheduler_inactive", None)
+	if inactive:
+		return bool(inactive())
+	return bool(frappe.conf.get("pause_scheduler") or scheduler.is_scheduler_disabled())

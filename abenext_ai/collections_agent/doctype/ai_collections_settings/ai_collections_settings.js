@@ -48,3 +48,15 @@ function show_preview(items) {
 	dialog.$body.html(`<div style="max-height:70vh;overflow:auto">${html}</div>`);
 	dialog.show();
 }
+
+frappe.ui.form.on("AI Collections Settings", {
+	refresh(frm) {
+		frappe.xcall("abenext_ai.setup.scheduler_paused").then((paused) => {
+			if (paused) {
+				frm.dashboard.set_headline_alert(
+					__("Scheduled jobs are paused on this site, so nothing here runs automatically. Ask your administrator to resume the scheduler."),
+					"orange");
+			}
+		});
+	},
+});
