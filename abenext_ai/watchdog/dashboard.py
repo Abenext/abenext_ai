@@ -14,7 +14,7 @@ AREAS = [
 		"rules": ["DUPLICATE_PURCHASE_INVOICE", "DUPLICATE_PAYMENT"]},
 	{"key": "receivables", "label": "Accounts Receivable", "icon": "file",
 		"rules": ["DUPLICATE_SALES_INVOICE", "CREDIT_LIMIT_EXCEEDED", "SELLING_BELOW_COST"]},
-	{"key": "bank", "label": "Bank & Cash", "icon": "bank",
+	{"key": "bank", "label": "Bank & Cash", "icon": "accounting",
 		"rules": ["NEGATIVE_CASH", "OLD_UNCLEARED_BANK"]},
 	{"key": "stock", "label": "Inventory", "icon": "stock",
 		"rules": ["NEGATIVE_STOCK", "VALUATION_JUMP", "DUPLICATE_STOCK_ENTRY"]},
@@ -110,7 +110,6 @@ def overview(company=None, status="Open"):
 		findings.append(dict(r,
 			area=area,
 			rule_name=rule_names.get(r.rule) or r.rule,
-			detected=pretty_date(r.first_seen) if r.first_seen else "",
 			reference_url=get_url_to_form(r.reference_doctype, r.reference_name) if r.reference_name else "",
 			related_url=get_url_to_form(r.related_doctype, r.related_name) if r.related_name else "",
 			why=[_(w) for w in why], actions=[_(a) for a in actions]))

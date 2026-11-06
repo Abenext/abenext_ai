@@ -149,7 +149,7 @@ class WatchdogDashboard {
 			<div class="abx-issue ${sev}"><b>${esc(__("Issue"))}:</b> ${esc(f.details)}</div>
 			${f.note ? `<div class="abx-wd-muted small">${esc(__("Note"))}: ${esc(f.note)}</div>` : ""}
 			<div class="abx-card-foot">
-				<span class="abx-wd-muted small">${frappe.utils.icon("calendar", "xs")} ${esc(__("Detected"))} ${esc(f.detected)}</span>
+				<span class="abx-wd-muted small">${frappe.utils.icon("calendar", "xs")} ${esc(__("Detected"))} ${esc(f.first_seen ? frappe.datetime.prettyDate(f.first_seen) : "")}</span>
 				<span>
 					${open ? `<button class="btn btn-xs btn-primary" data-action="Fixed" data-name="${esc(f.name)}">${esc(__("Mark Fixed"))}</button>
 						<button class="btn btn-xs btn-default" data-action="Ignored" data-name="${esc(f.name)}">${esc(__("Ignore"))}</button>`
@@ -170,7 +170,7 @@ class WatchdogDashboard {
 			? `<${numbered ? "ol" : "ul"} class="abx-list">${items.map((i) => `<li>${esc(i)}</li>`).join("")}</${numbered ? "ol" : "ul"}>` : "";
 		$a.html(`
 			<div class="abx-panel">
-				<div class="abx-panel-title">${frappe.utils.icon("star", "md")} ${esc(__("Assistant"))}</div>
+				<div class="abx-panel-title"><span class="abx-spark">${frappe.utils.icon("star", "sm")}</span><span>${esc(__("Assistant"))}</span></div>
 				<div class="abx-wd-muted small">${esc(f.title)}</div>
 				<div class="abx-box why"><div class="abx-box-title">${esc(__("Why this matters"))}</div>${list(f.why)}</div>
 				<div class="abx-box act"><div class="abx-box-title">${esc(__("Recommended actions"))}</div>${list(f.actions, true)}</div>
@@ -210,7 +210,8 @@ class WatchdogDashboard {
 			.abx-wd-summary .abx-wd-muted { color: rgba(255,255,255,.85); }
 			.abx-wd-big { font-size: 34px; font-weight: 700; line-height: 1; }
 			.abx-wd-pills { margin: 10px 0; display: flex; gap: 6px; }
-			.abx-wd-summary .abx-pill { background: rgba(255,255,255,.22); color: #fff; }
+			.abx-wd-summary .abx-pill, .abx-wd-summary .abx-pill.high, .abx-wd-summary .abx-pill.medium { background: rgba(255,255,255,.22); color: #fff; }
+			.abx-wd-summary b { color: #fff; }
 			.abx-area { display: flex; justify-content: space-between; align-items: center; padding: 12px 14px; border: 1px solid var(--border-color);
 				border-radius: 12px; margin-bottom: 8px; cursor: pointer; background: var(--card-bg); font-weight: 600; }
 			.abx-area:hover { border-color: #f97316; }
@@ -243,7 +244,10 @@ class WatchdogDashboard {
 			.abx-card-foot { display: flex; justify-content: space-between; align-items: center; margin-top: 12px; gap: 8px; flex-wrap: wrap; }
 			.abx-empty { text-align: center; padding: 60px 20px; color: var(--text-muted); border: 1px dashed var(--border-color); border-radius: 14px; }
 			.abx-panel { border: 1px solid var(--border-color); border-radius: 14px; padding: 16px; margin-bottom: 14px; background: var(--card-bg); }
-			.abx-panel-title { font-weight: 700; font-size: 15px; margin-bottom: 6px; display: flex; gap: 6px; align-items: center; }
+			.abx-panel-title { font-weight: 700; font-size: 15px; margin-bottom: 6px; display: flex; gap: 8px; align-items: center; justify-content: flex-start; }
+			.abx-spark { width: 26px; height: 26px; border-radius: 8px; display: inline-flex; align-items: center; justify-content: center;
+				background: linear-gradient(135deg, #f97316, #7c3aed); flex: none; }
+			.abx-spark svg { width: 14px; height: 14px; --icon-stroke: #fff; stroke: #fff; }
 			.abx-box { border-radius: 10px; padding: 12px; margin: 12px 0; }
 			.abx-box.why { background: rgba(124,58,237,.08); } .abx-box.act { background: rgba(249,115,22,.09); } .abx-box.ai { background: rgba(37,99,235,.08); }
 			.abx-box-title { font-weight: 600; margin-bottom: 6px; }
