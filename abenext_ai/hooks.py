@@ -34,6 +34,14 @@ scheduler_events = {
     "daily": ["abenext_ai.watchdog.runner.daily"],
     "cron": {"0 7 * * *": ["abenext_ai.watchdog.report.morning"]},
 }
+add_to_apps_screen = [
+    {
+        "name": "abenext_ai",
+        "logo": "/assets/abenext_ai/images/abenext-logo.svg",
+        "title": "Abenext AI",
+        "route": "/app/abenext-ai",
+    }
+]
 # required_apps = []
 
 # Each item in the list will be shown as an app in the apps page
