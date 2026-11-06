@@ -5,7 +5,7 @@ import frappe
 from frappe import _
 from frappe.utils import now_datetime
 
-from abenext_ai.watchdog.checks import CHECKS, SELF_CLOSING
+from abenext_ai.watchdog.checks import CHECKS, REFRESHED, SELF_CLOSING
 
 ROLES = ("System Manager", "Accounts Manager")
 
@@ -62,6 +62,8 @@ def _store(company, rule, findings):
 		existing = frappe.db.get_value("AI Watchdog Finding", {"finding_key": f["key"]}, ["name", "status"], as_dict=True)
 		if existing:
 			values = {"last_seen": now}
+			if rule.name in REFRESHED:
+				values.update({"title": f["title"][:140], "details": f.get("details"), "amount": f.get("amount")})
 			if existing.status == "Fixed" and rule.name in SELF_CLOSING:
 				values.update({"status": "Open", "resolved_by": None, "resolved_on": None})
 			frappe.db.set_value("AI Watchdog Finding", existing.name, values, update_modified=False)

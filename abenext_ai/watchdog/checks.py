@@ -209,13 +209,284 @@ def duplicate_stock_entry(company, rule):
 	return findings
 
 
+def duplicate_payment(company, rule):
+	days = int(rule.threshold or 3)
+	rows = frappe.db.sql(
+		"""
+		select a.name as first, b.name as second, a.party_type, a.party, a.paid_amount, a.payment_type,
+			a.reference_no, b.reference_no as second_ref
+		from `tabPayment Entry` a
+		join `tabPayment Entry` b
+			on b.company = a.company and b.party_type = a.party_type and b.party = a.party
+			and b.payment_type = a.payment_type and b.paid_amount = a.paid_amount
+			and b.name > a.name and b.docstatus = 1
+		where a.docstatus = 1 and a.company = %(company)s and ifnull(a.party, '') != ''
+			and a.payment_type in ('Pay', 'Receive') and a.posting_date >= %(since)s
+			and (
+				(ifnull(a.reference_no, '') != '' and a.reference_no = b.reference_no)
+				or abs(datediff(a.posting_date, b.posting_date)) <= %(days)s
+			)
+		limit 200
+		""",
+		{"company": company, "since": _since(rule), "days": days},
+		as_dict=True,
+	)
+	findings = []
+	for r in rows:
+		same_ref = r.reference_no and r.reference_no == r.second_ref
+		why = "the same reference %s" % r.reference_no if same_ref else "within %d days" % days
+		verb = "paid to" if r.payment_type == "Pay" else "received from"
+		findings.append({
+			"key": "DUPLICATE_PAYMENT:%s:%s" % (r.first, r.second),
+			"title": "Possible duplicate payment %s %s" % (verb, r.party),
+			"details": "%s and %s both show %s %s %s, with %s." % (
+				r.first, r.second, fmt_money(r.paid_amount), verb, r.party, why),
+			"reference_doctype": "Payment Entry", "reference_name": r.second,
+			"related_doctype": "Payment Entry", "related_name": r.first,
+			"amount": r.paid_amount,
+		})
+	return findings
+
+
+def _norm_account(number):
+	return "".join(ch for ch in str(number or "").upper() if ch.isalnum())
+
+
+def shared_bank_account(company, rule):
+	owners = defaultdict(set)
+	for row in frappe.get_all(
+		"Bank Account",
+		filters={"is_company_account": 0, "party": ["is", "set"]},
+		fields=["name", "party_type", "party", "bank_account_no", "iban"],
+		limit=20000,
+	):
+		for number in (row.bank_account_no, row.iban):
+			key = _norm_account(number)
+			if len(key) >= 6:
+				owners[key].add((row.party_type, row.party, "Bank Account", row.name))
+	meta = frappe.get_meta("Employee") if frappe.db.exists("DocType", "Employee") else None
+	if meta and meta.has_field("bank_ac_no"):
+		for row in frappe.get_all("Employee", filters={"bank_ac_no": ["is", "set"], "company": company},
+				fields=["name", "employee_name", "bank_ac_no"], limit=20000):
+			key = _norm_account(row.bank_ac_no)
+			if len(key) >= 6:
+				owners[key].add(("Employee", row.employee_name or row.name, "Employee", row.name))
+	findings = []
+	for number, people in owners.items():
+		parties = {(p[0], p[1]) for p in people}
+		if len(parties) < 2:
+			continue
+		people = sorted(people)
+		names = ", ".join("%s %s" % (p[0], p[1]) for p in people)
+		findings.append({
+			"key": "SHARED_BANK_ACCOUNT:%s" % number,
+			"title": "Same bank account used by %d parties" % len(parties),
+			"details": "Bank account ending %s is recorded for %s. Check that each payee is genuine." % (number[-4:], names),
+			"reference_doctype": people[0][2], "reference_name": people[0][3],
+			"related_doctype": people[1][2], "related_name": people[1][3],
+		})
+	return findings
+
+
+def duplicate_sales_invoice(company, rule):
+	days = int(rule.threshold or 3)
+	rows = frappe.db.sql(
+		"""
+		select a.name as first, b.name as second, a.customer, a.grand_total
+		from `tabSales Invoice` a
+		join `tabSales Invoice` b
+			on b.customer = a.customer and b.company = a.company and b.grand_total = a.grand_total
+			and b.name > a.name and b.docstatus = 1 and b.is_return = 0
+		where a.docstatus = 1 and a.is_return = 0 and a.company = %(company)s and a.posting_date >= %(since)s
+			and abs(datediff(a.posting_date, b.posting_date)) <= %(days)s
+		limit 200
+		""",
+		{"company": company, "since": _since(rule), "days": days},
+		as_dict=True,
+	)
+	return [{
+		"key": "DUPLICATE_SALES_INVOICE:%s:%s" % (r.first, r.second),
+		"title": "Possible duplicate invoice to %s" % r.customer,
+		"details": "%s and %s are both for %s with the same amount (%s) within %d days." % (
+			r.first, r.second, r.customer, fmt_money(r.grand_total), days),
+		"reference_doctype": "Sales Invoice", "reference_name": r.second,
+		"related_doctype": "Sales Invoice", "related_name": r.first,
+		"amount": r.grand_total,
+	} for r in rows]
+
+
+def negative_cash(company, rule):
+	rows = frappe.db.sql(
+		"""
+		select gle.account, sum(gle.debit - gle.credit) as balance
+		from `tabGL Entry` gle
+		join `tabAccount` acc on acc.name = gle.account
+		where gle.company = %(company)s and gle.is_cancelled = 0 and acc.account_type = 'Cash' and acc.is_group = 0
+		group by gle.account
+		having balance < -0.005
+		""",
+		{"company": company},
+		as_dict=True,
+	)
+	return [{
+		"key": "NEGATIVE_CASH:%s" % r.account,
+		"title": "Negative cash balance in %s" % r.account,
+		"details": "%s shows %s. Cash cannot be below zero; a receipt is probably missing or a payment was entered twice." % (
+			r.account, fmt_money(r.balance)),
+		"reference_doctype": "Account", "reference_name": r.account,
+		"amount": r.balance,
+	} for r in rows]
+
+
+def selling_below_cost(company, rule):
+	allowed = flt(rule.threshold) / 100
+	rows = frappe.db.sql(
+		"""
+		select si.name, si.customer, si.posting_date, sii.item_code, sii.qty, sii.base_net_rate,
+			coalesce(nullif(sii.incoming_rate, 0), bin.valuation_rate, 0) as cost
+		from `tabSales Invoice Item` sii
+		join `tabSales Invoice` si on si.name = sii.parent
+		join `tabItem` item on item.name = sii.item_code and item.is_stock_item = 1
+		left join `tabBin` bin on bin.item_code = sii.item_code and bin.warehouse = sii.warehouse
+		where si.docstatus = 1 and si.is_return = 0 and si.company = %(company)s and si.posting_date >= %(since)s
+			and sii.qty > 0
+		limit 5000
+		""",
+		{"company": company, "since": _since(rule)},
+		as_dict=True,
+	)
+	findings = []
+	for r in rows:
+		cost = flt(r.cost)
+		if cost <= 0 or flt(r.base_net_rate) >= cost * (1 - allowed):
+			continue
+		loss = (cost - flt(r.base_net_rate)) * flt(r.qty)
+		findings.append({
+			"key": "SELLING_BELOW_COST:%s:%s" % (r.name, r.item_code),
+			"title": "%s sold below cost on %s" % (r.item_code, r.name),
+			"details": "%s to %s on %s: %s sold at %s each against a cost of %s (loss about %s)." % (
+				r.name, r.customer, formatdate(r.posting_date), r.item_code,
+				fmt_money(r.base_net_rate), fmt_money(cost), fmt_money(loss)),
+			"reference_doctype": "Sales Invoice", "reference_name": r.name, "amount": loss,
+		})
+	return findings
+
+
+BACKDATE_DOCTYPES = {
+	"Sales Invoice": "grand_total",
+	"Purchase Invoice": "grand_total",
+	"Payment Entry": "paid_amount",
+	"Journal Entry": "total_debit",
+	"Stock Entry": "total_outgoing_value",
+}
+
+
+def backdated_entry(company, rule):
+	days = int(rule.threshold or 30)
+	findings = []
+	for doctype, amount_field in BACKDATE_DOCTYPES.items():
+		opening = "and ifnull(is_opening, 'No') != 'Yes'" if frappe.get_meta(doctype).has_field("is_opening") else ""
+		rows = frappe.db.sql(
+			"""
+			select name, posting_date, date(creation) as entered, `{amount}` as amount
+			from `tab{doctype}`
+			where docstatus = 1 and company = %(company)s and creation >= %(since)s
+				and datediff(date(creation), posting_date) > %(days)s {opening}
+			limit 300
+			""".format(doctype=doctype, amount=amount_field, opening=opening),
+			{"company": company, "since": _since(rule), "days": days},
+			as_dict=True,
+		)
+		for r in rows:
+			late = (getdate(r.entered) - getdate(r.posting_date)).days
+			findings.append({
+				"key": "BACKDATED_ENTRY:%s:%s" % (doctype, r.name),
+				"title": "%s %s back-dated by %d days" % (doctype, r.name, late),
+				"details": "%s was entered on %s with a posting date of %s. Check why it was dated %d days earlier." % (
+					r.name, formatdate(r.entered), formatdate(r.posting_date), late),
+				"reference_doctype": doctype, "reference_name": r.name, "amount": r.amount,
+			})
+	return findings
+
+
+def old_uncleared_bank(company, rule):
+	days = int(rule.threshold or 30)
+	before = add_days(nowdate(), -days)
+	rows = frappe.db.sql(
+		"""
+		select account, count(*) as entries, sum(amount) as total, min(posting_date) as oldest
+		from (
+			select pe.paid_from as account, pe.paid_amount as amount, pe.posting_date
+			from `tabPayment Entry` pe join `tabAccount` acc on acc.name = pe.paid_from
+			where pe.docstatus = 1 and pe.company = %(company)s and acc.account_type = 'Bank'
+				and pe.clearance_date is null and pe.posting_date between %(since)s and %(before)s
+			union all
+			select pe.paid_to, pe.received_amount, pe.posting_date
+			from `tabPayment Entry` pe join `tabAccount` acc on acc.name = pe.paid_to
+			where pe.docstatus = 1 and pe.company = %(company)s and acc.account_type = 'Bank'
+				and pe.clearance_date is null and pe.posting_date between %(since)s and %(before)s
+			union all
+			select jea.account, abs(jea.debit - jea.credit), je.posting_date
+			from `tabJournal Entry Account` jea join `tabJournal Entry` je on je.name = jea.parent
+			join `tabAccount` acc on acc.name = jea.account
+			where je.docstatus = 1 and je.company = %(company)s and acc.account_type = 'Bank'
+				and je.clearance_date is null and je.posting_date between %(since)s and %(before)s
+		) uncleared
+		group by account
+		""",
+		{"company": company, "since": _since(rule), "before": before},
+		as_dict=True,
+	)
+	return [{
+		"key": "OLD_UNCLEARED_BANK:%s" % r.account,
+		"title": "%d entries on %s not seen on the bank statement" % (r.entries, r.account),
+		"details": "%d payment(s) and journal entries totalling %s on %s are older than %d days and still have no "
+		"clearance date; the oldest is from %s. Reconcile the bank account, or check whether these really happened." % (
+			r.entries, fmt_money(r.total), r.account, days, formatdate(r.oldest)),
+		"reference_doctype": "Account", "reference_name": r.account, "amount": r.total,
+	} for r in rows]
+
+
+def credit_limit_exceeded(company, rule):
+	rows = frappe.db.sql(
+		"""
+		select ccl.parent as customer, ccl.credit_limit,
+			(select coalesce(sum(si.outstanding_amount), 0) from `tabSales Invoice` si
+				where si.customer = ccl.parent and si.company = ccl.company and si.docstatus = 1) as outstanding
+		from `tabCustomer Credit Limit` ccl
+		where ccl.parenttype = 'Customer' and ccl.company = %(company)s and ccl.credit_limit > 0
+		""",
+		{"company": company},
+		as_dict=True,
+	)
+	return [{
+		"key": "CREDIT_LIMIT_EXCEEDED:%s:%s" % (company, r.customer),
+		"title": "%s is over the credit limit" % r.customer,
+		"details": "%s owes %s against a credit limit of %s (over by %s)." % (
+			r.customer, fmt_money(r.outstanding), fmt_money(r.credit_limit), fmt_money(flt(r.outstanding) - flt(r.credit_limit))),
+		"reference_doctype": "Customer", "reference_name": r.customer,
+		"amount": flt(r.outstanding) - flt(r.credit_limit),
+	} for r in rows if flt(r.outstanding) > flt(r.credit_limit)]
+
+
 CHECKS = {
 	"DUPLICATE_PURCHASE_INVOICE": duplicate_purchase_invoice,
 	"NEGATIVE_STOCK": negative_stock,
 	"UNUSUAL_JOURNAL_ENTRY": unusual_journal_entry,
 	"VALUATION_JUMP": valuation_jump,
 	"DUPLICATE_STOCK_ENTRY": duplicate_stock_entry,
+	"DUPLICATE_PAYMENT": duplicate_payment,
+	"SHARED_BANK_ACCOUNT": shared_bank_account,
+	"DUPLICATE_SALES_INVOICE": duplicate_sales_invoice,
+	"NEGATIVE_CASH": negative_cash,
+	"SELLING_BELOW_COST": selling_below_cost,
+	"BACKDATED_ENTRY": backdated_entry,
+	"OLD_UNCLEARED_BANK": old_uncleared_bank,
+	"CREDIT_LIMIT_EXCEEDED": credit_limit_exceeded,
 }
 
 # Rules about the current state: a finding that is no longer found has been fixed.
-SELF_CLOSING = {"NEGATIVE_STOCK"}
+SELF_CLOSING = {"NEGATIVE_STOCK", "NEGATIVE_CASH", "OLD_UNCLEARED_BANK", "CREDIT_LIMIT_EXCEEDED"}
+
+# Rules whose finding describes a changing state: its text and amount are refreshed every night.
+REFRESHED = {"NEGATIVE_STOCK", "NEGATIVE_CASH", "OLD_UNCLEARED_BANK", "CREDIT_LIMIT_EXCEEDED"}
